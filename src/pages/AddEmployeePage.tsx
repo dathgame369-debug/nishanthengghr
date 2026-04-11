@@ -12,8 +12,10 @@ export default function AddEmployeePage() {
   const { toast } = useToast();
   const newId = generateEmployeeId(employees);
 
-  const [form, setForm] = useState({
-    name: '', fixedSalary: '', dateOfJoining: '', department: '', designation: '', phone: '', status: 'Active' as const,
+  const [form, setForm] = useState<{
+    name: string; fixedSalary: string; dateOfJoining: string; department: string; designation: string; phone: string; status: 'Active' | 'Inactive';
+  }>({
+    name: '', fixedSalary: '', dateOfJoining: '', department: '', designation: '', phone: '', status: 'Active',
   });
 
   const handleSubmit = (e: React.FormEvent) => {
