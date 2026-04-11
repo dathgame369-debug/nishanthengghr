@@ -1,0 +1,86 @@
+export interface Employee {
+  id: string;
+  name: string;
+  fixedSalary: number;
+  dateOfJoining: string;
+  department: string;
+  designation: string;
+  phone: string;
+  status: 'Active' | 'Inactive';
+}
+
+export interface Advance {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  advanceDate: string;
+  advanceAmount: number;
+  deductionType: 'Manual' | 'EMI';
+  monthlyDeductionAmount: number;
+  totalDeducted: number;
+  remainingBalance: number;
+  notes: string;
+  status: 'Active' | 'Closed';
+  deductionHistory: { month: string; amount: number }[];
+}
+
+export interface PayrollEntry {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  date: string;
+  month: string;
+  monthlySalary: number;
+  presentDays: number;
+  presentAmount: number;
+  holidays: number;
+  holidayAmount: number;
+  otHours: number;
+  otAmount: number;
+  welfareAmount: number;
+  advanceDeduction: number;
+  bonus: number;
+  netPayable: number;
+}
+
+export const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+export const DEPARTMENTS = [
+  'Production', 'Maintenance', 'Quality', 'Admin', 'HR', 'Accounts', 'Sales', 'Store'
+];
+
+export const DESIGNATIONS = [
+  'Manager', 'Supervisor', 'Operator', 'Technician', 'Helper', 'Clerk', 'Engineer', 'Foreman'
+];
+
+export function calculatePayroll(entry: Partial<PayrollEntry> & { monthlySalary: number }): {
+  presentAmount: number;
+  holidayAmount: number;
+  otAmount: number;
+  welfareAmount: number;
+  netPayable: number;
+} {
+  const perDay = entry.monthlySalary / 26;
+  const perHour = perDay / 8;
+  const presentAmount = perDay * (entry.presentDays || 0);
+  const holidayAmount = perDay * (entry.holidays || 0);
+  const otAmount = perHour * (entry.otHours || 0);
+  const welfareAmount = ((entry.otHours || 0) / 4) * 35;
+  const netPayable = presentAmount + holidayAmount + otAmount + welfareAmount + (entry.bonus || 0) - (entry.advanceDeduction || 0);
+  return { presentAmount, holidayAmount, otAmount, welfareAmount, netPayable };
+}
+
+export function formatCurrency(amount: number): string {
+  return '₹' + amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+export function generateEmployeeId(employees: Employee[]): string {
+  const maxNum = employees.reduce((max, emp) => {
+    const num = parseInt(emp.id.replace('EMP', ''), 10);
+    return num > max ? num : max;
+  }, 0);
+  return `EMP${String(maxNum + 1).padStart(3, '0')}`;
+}
