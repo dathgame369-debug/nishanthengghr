@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useHR } from '@/context/HRContext';
-import { Employee, DEPARTMENTS, DESIGNATIONS, formatCurrency } from '@/types/hr';
+import { Employee, formatCurrency } from '@/types/hr';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -11,10 +11,13 @@ import { useToast } from '@/hooks/use-toast';
 import { Users, Pencil, Trash2, Search } from 'lucide-react';
 
 export default function EmployeeListPage() {
-  const { employees, setEmployees, payroll, setPayroll } = useHR();
+  const { employees, setEmployees, payroll, setPayroll, departments, roles } = useHR();
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [editEmp, setEditEmp] = useState<Employee | null>(null);
+
+  const activeDepts = departments.filter(d => d.status === 'Active');
+  const activeRoles = roles.filter(r => r.status === 'Active');
 
   const filtered = employees.filter(e =>
     e.name.toLowerCase().includes(search.toLowerCase()) || e.id.toLowerCase().includes(search.toLowerCase())
@@ -23,7 +26,6 @@ export default function EmployeeListPage() {
   const handleSave = () => {
     if (!editEmp) return;
     setEmployees(prev => prev.map(e => e.id === editEmp.id ? editEmp : e));
-    // Update payroll entries that haven't been finalized
     setPayroll(prev => prev.map(p => p.employeeId === editEmp.id ? { ...p, monthlySalary: editEmp.fixedSalary, employeeName: editEmp.name } : p));
     setEditEmp(null);
     toast({ title: 'Updated', description: `${editEmp.name} updated successfully` });
@@ -101,13 +103,23 @@ export default function EmployeeListPage() {
                 <div><label className="text-sm font-medium block mb-1">Department</label>
                   <Select value={editEmp.department} onValueChange={v => setEditEmp({ ...editEmp, department: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{DEPARTMENTS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+                    <SelectContent>
+                      {activeDepts.map(d => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}
+                      {!activeDepts.find(d => d.name === editEmp.department) && editEmp.department && (
+                        <SelectItem value={editEmp.department}>{editEmp.department} (legacy)</SelectItem>
+                      )}
+                    </SelectContent>
                   </Select>
                 </div>
                 <div><label className="text-sm font-medium block mb-1">Designation</label>
                   <Select value={editEmp.designation} onValueChange={v => setEditEmp({ ...editEmp, designation: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{DESIGNATIONS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+                    <SelectContent>
+                      {activeRoles.map(r => <SelectItem key={r.id} value={r.name}>{r.name}</SelectItem>)}
+                      {!activeRoles.find(r => r.name === editEmp.designation) && editEmp.designation && (
+                        <SelectItem value={editEmp.designation}>{editEmp.designation} (legacy)</SelectItem>
+                      )}
+                    </SelectContent>
                   </Select>
                 </div>
               </div>

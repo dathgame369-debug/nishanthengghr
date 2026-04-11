@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useHR } from '@/context/HRContext';
-import { PayrollEntry, MONTHS, calculatePayroll, formatCurrency } from '@/types/hr';
+import { PayrollEntry, MONTHS, getYearOptions, calculatePayroll, formatCurrency } from '@/types/hr';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -11,12 +11,14 @@ import { CalendarDays, Plus, Save } from 'lucide-react';
 export default function PayrollPage() {
   const { employees, payroll, setPayroll, advances, setAdvances } = useHR();
   const { toast } = useToast();
+  const currentYear = new Date().getFullYear();
   const [selectedMonth, setSelectedMonth] = useState(MONTHS[new Date().getMonth()]);
+  const [selectedYear, setSelectedYear] = useState(currentYear);
   const [entries, setEntries] = useState<PayrollEntry[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   const loadMonth = () => {
-    const existing = payroll.filter(p => p.month === selectedMonth);
+    const existing = payroll.filter(p => p.month === selectedMonth && (p.year || currentYear) === selectedYear);
     if (existing.length > 0) {
       setEntries(existing);
     } else {
@@ -27,8 +29,8 @@ export default function PayrollPage() {
         const base = { monthlySalary: emp.fixedSalary, presentDays: 0, holidays: 0, otHours: 0, bonus: 0, advanceDeduction: advDed };
         const calc = calculatePayroll(base);
         return {
-          id: `PAY-${emp.id}-${selectedMonth}`, employeeId: emp.id, employeeName: emp.name,
-          date: new Date().toISOString().split('T')[0], month: selectedMonth,
+          id: `PAY-${emp.id}-${selectedMonth}-${selectedYear}`, employeeId: emp.id, employeeName: emp.name,
+          date: new Date().toISOString().split('T')[0], month: selectedMonth, year: selectedYear,
           monthlySalary: emp.fixedSalary, presentDays: 0, holidays: 0, otHours: 0,
           advanceDeduction: advDed, bonus: 0, ...calc,
         };
@@ -49,7 +51,6 @@ export default function PayrollPage() {
   };
 
   const savePayroll = () => {
-    // Update advances
     entries.forEach(entry => {
       if (entry.advanceDeduction > 0) {
         setAdvances(prev => prev.map(adv => {
@@ -59,7 +60,7 @@ export default function PayrollPage() {
             return {
               ...adv, totalDeducted: newDeducted, remainingBalance: Math.max(0, newBalance),
               status: newBalance <= 0 ? 'Closed' : 'Active',
-              deductionHistory: [...adv.deductionHistory, { month: selectedMonth, amount: entry.advanceDeduction }],
+              deductionHistory: [...adv.deductionHistory, { month: `${selectedMonth} ${selectedYear}`, amount: entry.advanceDeduction }],
             };
           }
           return adv;
@@ -68,10 +69,10 @@ export default function PayrollPage() {
     });
 
     setPayroll(prev => {
-      const otherMonths = prev.filter(p => p.month !== selectedMonth);
-      return [...otherMonths, ...entries];
+      const others = prev.filter(p => !(p.month === selectedMonth && (p.year || currentYear) === selectedYear));
+      return [...others, ...entries];
     });
-    toast({ title: 'Saved', description: `Payroll for ${selectedMonth} saved` });
+    toast({ title: 'Saved', description: `Payroll for ${selectedMonth} ${selectedYear} saved` });
   };
 
   return (
@@ -88,8 +89,12 @@ export default function PayrollPage() {
         </div>
         <div className="flex items-center gap-3">
           <Select value={selectedMonth} onValueChange={v => { setSelectedMonth(v); setLoaded(false); }}>
-            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
             <SelectContent>{MONTHS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+          </Select>
+          <Select value={String(selectedYear)} onValueChange={v => { setSelectedYear(Number(v)); setLoaded(false); }}>
+            <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+            <SelectContent>{getYearOptions().map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
           </Select>
           <Button onClick={loadMonth} variant="outline"><Plus className="w-4 h-4 mr-2" /> Load</Button>
           {loaded && <Button onClick={savePayroll}><Save className="w-4 h-4 mr-2" /> Save Payroll</Button>}
@@ -117,7 +122,7 @@ export default function PayrollPage() {
                 <TableRow key={entry.id}>
                   <TableCell className="font-medium text-primary text-sm">{entry.employeeId}</TableCell>
                   <TableCell className="text-sm font-medium">{entry.employeeName}</TableCell>
-                  <TableCell><Input type="date" value={entry.date} onChange={e => updateEntry(idx, 'date', 0)} className="h-8 w-32 text-xs" /></TableCell>
+                  <TableCell><Input type="date" value={entry.date} onChange={e => { const v = e.target.value; setEntries(prev => prev.map((en, i) => i === idx ? { ...en, date: v } : en)); }} className="h-8 w-32 text-xs" /></TableCell>
                   <TableCell className="text-right font-mono text-sm">{formatCurrency(entry.monthlySalary)}</TableCell>
                   <TableCell><Input type="number" min="0" max="31" value={entry.presentDays} onChange={e => updateEntry(idx, 'presentDays', parseFloat(e.target.value) || 0)} className="h-8 w-16 text-center text-sm" /></TableCell>
                   <TableCell className="text-right font-mono text-sm">{formatCurrency(entry.presentAmount)}</TableCell>
@@ -145,7 +150,7 @@ export default function PayrollPage() {
       {!loaded && (
         <div className="bg-card rounded-xl p-12 text-center card-shadow border border-border">
           <CalendarDays className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-          <p className="text-muted-foreground">Select a month and click Load to begin</p>
+          <p className="text-muted-foreground">Select a month & year and click Load to begin</p>
         </div>
       )}
     </div>

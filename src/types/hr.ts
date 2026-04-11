@@ -30,6 +30,7 @@ export interface PayrollEntry {
   employeeName: string;
   date: string;
   month: string;
+  year: number;
   monthlySalary: number;
   presentDays: number;
   presentAmount: number;
@@ -43,18 +44,36 @@ export interface PayrollEntry {
   netPayable: number;
 }
 
+export interface Department {
+  id: string;
+  name: string;
+  status: 'Active' | 'Inactive';
+}
+
+export interface Role {
+  id: string;
+  name: string;
+  department: string;
+  status: 'Active' | 'Inactive';
+}
+
 export const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
-export const DEPARTMENTS = [
+export const DEFAULT_DEPARTMENTS = [
   'Production', 'Maintenance', 'Quality', 'Admin', 'HR', 'Accounts', 'Sales', 'Store'
 ];
 
-export const DESIGNATIONS = [
+export const DEFAULT_DESIGNATIONS = [
   'Manager', 'Supervisor', 'Operator', 'Technician', 'Helper', 'Clerk', 'Engineer', 'Foreman'
 ];
+
+export function getYearOptions(): number[] {
+  const current = new Date().getFullYear();
+  return [current - 2, current - 1, current, current + 1];
+}
 
 export function calculatePayroll(entry: Partial<PayrollEntry> & { monthlySalary: number }): {
   presentAmount: number;

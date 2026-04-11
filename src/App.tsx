@@ -11,6 +11,7 @@ import EmployeeListPage from "./pages/EmployeeListPage";
 import PayrollPage from "./pages/PayrollPage";
 import AdvanceManagementPage from "./pages/AdvanceManagementPage";
 import PayslipPage from "./pages/PayslipPage";
+import SettingsPage from "./pages/SettingsPage";
 import AppLayout from "./components/AppLayout";
 import NotFound from "./pages/NotFound";
 
@@ -32,6 +33,7 @@ const App = () => (
               <Route path="/payroll" element={<PayrollPage />} />
               <Route path="/advances" element={<AdvanceManagementPage />} />
               <Route path="/payslip" element={<PayslipPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

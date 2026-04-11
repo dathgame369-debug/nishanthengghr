@@ -1,20 +1,22 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useHR } from '@/context/HRContext';
-import { MONTHS, formatCurrency } from '@/types/hr';
+import { MONTHS, getYearOptions } from '@/types/hr';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, Download, Printer } from 'lucide-react';
+import { FileText, Download } from 'lucide-react';
 import PayslipTemplate from '@/components/PayslipTemplate';
 import { generatePayslipPDF, generateBulkPayslipPDF } from '@/utils/pdfExport';
 
 export default function PayslipPage() {
   const { employees, payroll } = useHR();
+  const currentYear = new Date().getFullYear();
   const [selectedMonth, setSelectedMonth] = useState(MONTHS[new Date().getMonth()]);
+  const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedEmpId, setSelectedEmpId] = useState('');
   const [bulkMode, setBulkMode] = useState(false);
   const [bulkLayout, setBulkLayout] = useState<'full' | 'compact'>('compact');
 
-  const monthEntries = payroll.filter(p => p.month === selectedMonth);
+  const monthEntries = payroll.filter(p => p.month === selectedMonth && (p.year || currentYear) === selectedYear);
   const selectedEntry = monthEntries.find(p => p.employeeId === selectedEmpId);
 
   return (
@@ -38,6 +40,13 @@ export default function PayslipPage() {
             <Select value={selectedMonth} onValueChange={setSelectedMonth}>
               <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
               <SelectContent>{MONTHS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="text-sm font-medium block mb-1.5">Year</label>
+            <Select value={String(selectedYear)} onValueChange={v => setSelectedYear(Number(v))}>
+              <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+              <SelectContent>{getYearOptions().map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           {!bulkMode && (
@@ -82,7 +91,6 @@ export default function PayslipPage() {
         </div>
       </div>
 
-      {/* Individual preview */}
       {!bulkMode && selectedEntry && (
         <div className="max-w-2xl mx-auto">
           <PayslipTemplate entry={selectedEntry} />
@@ -96,14 +104,13 @@ export default function PayslipPage() {
       {monthEntries.length === 0 && (
         <div className="bg-card rounded-xl p-12 text-center card-shadow border border-border">
           <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-          <p className="text-muted-foreground">No payroll data for {selectedMonth}. Process payroll first.</p>
+          <p className="text-muted-foreground">No payroll data for {selectedMonth} {selectedYear}. Process payroll first.</p>
         </div>
       )}
 
-      {/* Bulk preview */}
       {bulkMode && monthEntries.length > 0 && (
         <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">{monthEntries.length} payslips for {selectedMonth}</p>
+          <p className="text-sm text-muted-foreground">{monthEntries.length} payslips for {selectedMonth} {selectedYear}</p>
           <div className={bulkLayout === 'compact' ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' : 'space-y-6'}>
             {monthEntries.map(entry => (
               <PayslipTemplate key={entry.id} entry={entry} compact={bulkLayout === 'compact'} />
