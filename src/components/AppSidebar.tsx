@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useHR } from '@/context/HRContext';
 import {
   LayoutDashboard, UserPlus, Users, CalendarDays,
-  Wallet, FileText, LogOut, Building2
+  Wallet, FileText, LogOut, Building2, Settings
 } from 'lucide-react';
 
 const navItems = [
@@ -12,6 +12,7 @@ const navItems = [
   { path: '/payroll', label: 'Monthly Payroll', icon: CalendarDays },
   { path: '/advances', label: 'Advance Mgmt', icon: Wallet },
   { path: '/payslip', label: 'Payslip Generator', icon: FileText },
+  { path: '/settings', label: 'Settings', icon: Settings },
 ];
 
 export default function AppSidebar() {

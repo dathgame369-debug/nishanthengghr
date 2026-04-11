@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useHR } from '@/context/HRContext';
-import { MONTHS, formatCurrency } from '@/types/hr';
+import { MONTHS, getYearOptions, formatCurrency } from '@/types/hr';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -13,10 +13,12 @@ import { generatePayslipPDF, generateBulkPayslipPDF, exportPayrollExcel, exportP
 export default function DashboardPage() {
   const { employees, payroll, advances } = useHR();
   const navigate = useNavigate();
+  const currentYear = new Date().getFullYear();
   const [selectedMonth, setSelectedMonth] = useState(MONTHS[new Date().getMonth()]);
+  const [selectedYear, setSelectedYear] = useState(currentYear);
   const [search, setSearch] = useState('');
 
-  const monthEntries = payroll.filter(p => p.month === selectedMonth);
+  const monthEntries = payroll.filter(p => p.month === selectedMonth && (p.year || currentYear) === selectedYear);
   const filtered = monthEntries.filter(e =>
     e.employeeName.toLowerCase().includes(search.toLowerCase()) || e.employeeId.toLowerCase().includes(search.toLowerCase())
   );
@@ -41,7 +43,6 @@ export default function DashboardPage() {
         <p className="text-sm text-muted-foreground">Nishanth Engineering Works — HR Overview</p>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         {stats.map(s => (
           <Card key={s.label} className="card-shadow">
@@ -58,12 +59,15 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Controls */}
       <div className="bg-card rounded-xl p-4 card-shadow border border-border mb-6">
         <div className="flex flex-wrap items-center gap-3">
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
             <SelectContent>{MONTHS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+          </Select>
+          <Select value={String(selectedYear)} onValueChange={v => setSelectedYear(Number(v))}>
+            <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+            <SelectContent>{getYearOptions().map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
           </Select>
           <div className="relative flex-1 max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -78,7 +82,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Table */}
       <div className="bg-card rounded-xl card-shadow border border-border overflow-x-auto">
         <Table>
           <TableHeader>
@@ -99,7 +102,7 @@ export default function DashboardPage() {
               <TableRow key={e.id}>
                 <TableCell className="font-medium text-primary text-sm">{e.employeeId}</TableCell>
                 <TableCell className="text-sm">{e.employeeName}</TableCell>
-                <TableCell className="text-sm">{e.month}</TableCell>
+                <TableCell className="text-sm">{e.month} {e.year}</TableCell>
                 <TableCell className="text-right font-mono text-sm">{formatCurrency(e.monthlySalary)}</TableCell>
                 <TableCell className="text-center text-sm">{e.presentDays}</TableCell>
                 <TableCell className="text-right font-mono text-sm">{formatCurrency(e.presentAmount)}</TableCell>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useHR } from '@/context/HRContext';
-import { Employee, generateEmployeeId, DEPARTMENTS, DESIGNATIONS } from '@/types/hr';
+import { Employee, generateEmployeeId } from '@/types/hr';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -8,9 +8,12 @@ import { useToast } from '@/hooks/use-toast';
 import { UserPlus } from 'lucide-react';
 
 export default function AddEmployeePage() {
-  const { employees, setEmployees } = useHR();
+  const { employees, setEmployees, departments, roles } = useHR();
   const { toast } = useToast();
   const newId = generateEmployeeId(employees);
+
+  const activeDepts = departments.filter(d => d.status === 'Active');
+  const activeRoles = roles.filter(r => r.status === 'Active');
 
   const [form, setForm] = useState<{
     name: string; fixedSalary: string; dateOfJoining: string; department: string; designation: string; phone: string; status: 'Active' | 'Inactive';
@@ -67,14 +70,14 @@ export default function AddEmployeePage() {
               <label className="text-sm font-medium text-foreground mb-1.5 block">Department *</label>
               <Select value={form.department} onValueChange={v => setForm(f => ({ ...f, department: v }))}>
                 <SelectTrigger><SelectValue placeholder="Select dept" /></SelectTrigger>
-                <SelectContent>{DEPARTMENTS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+                <SelectContent>{activeDepts.map(d => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>
               <label className="text-sm font-medium text-foreground mb-1.5 block">Designation *</label>
               <Select value={form.designation} onValueChange={v => setForm(f => ({ ...f, designation: v }))}>
                 <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
-                <SelectContent>{DESIGNATIONS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+                <SelectContent>{activeRoles.map(r => <SelectItem key={r.id} value={r.name}>{r.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
           </div>
