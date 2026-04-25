@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { useHR } from '@/context/HRContext';
 import { Building2, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  if (isLoggedIn) { navigate('/dashboard', { replace: true }); return null; }
+  if (isLoggedIn) return <Navigate to="/dashboard" replace />;
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
