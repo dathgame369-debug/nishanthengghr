@@ -1,11 +1,17 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { PayrollEntry, Employee, formatCurrency } from '@/types/hr';
+import { PayrollEntry, Employee } from '@/types/hr';
+
+// Helvetica (jsPDF default) doesn't support the ₹ glyph — it renders as a box
+// or superscript "1". Use "Rs." prefix for reliable rendering across viewers.
+function money(n: number): string {
+  return 'Rs. ' + (n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 
 export function generatePayslipPDF(entry: PayrollEntry, employees: Employee[]) {
   const emp = employees.find(e => e.id === entry.employeeId);
   const doc = new jsPDF('p', 'mm', 'a4');
-  renderPayslip(doc, entry, emp, 15);
+  renderPayslip(doc, entry, emp, 15, false);
   doc.save(`Payslip_${entry.employeeId}_${entry.month}_${entry.year || ''}.pdf`);
 }
 
@@ -16,16 +22,16 @@ export function generateBulkPayslipPDF(entries: PayrollEntry[], employees: Emplo
     entries.forEach((entry, i) => {
       if (i > 0) doc.addPage();
       const emp = employees.find(e => e.id === entry.employeeId);
-      renderPayslip(doc, entry, emp, 15);
+      renderPayslip(doc, entry, emp, 15, false);
     });
   } else {
-    const slipH = 130;
+    const slipH = 135;
     const margin = 10;
     const perPage = 2;
     entries.forEach((entry, i) => {
       const pos = i % perPage;
       if (i > 0 && pos === 0) doc.addPage();
-      const y = margin + pos * (slipH + 5);
+      const y = margin + pos * (slipH + 8);
       const emp = employees.find(e => e.id === entry.employeeId);
       renderPayslip(doc, entry, emp, y, true);
     });
@@ -35,103 +41,154 @@ export function generateBulkPayslipPDF(entries: PayrollEntry[], employees: Emplo
 }
 
 function renderPayslip(doc: jsPDF, entry: PayrollEntry, emp: Employee | undefined, startY: number, compact = false) {
-  const x = 15;
-  const w = 180;
-  const fs = compact ? 8 : 10;
-  const lh = compact ? 5 : 6;
+  const x = 15;          // left edge
+  const w = 180;         // content width
   let y = startY;
 
-  // Border
-  const h = compact ? 125 : 180;
-  doc.setDrawColor(100);
-  doc.setLineWidth(0.3);
-  doc.rect(x - 2, y - 2, w + 4, h);
+  const grossEarnings =
+    entry.presentAmount + entry.holidayAmount + entry.otAmount + entry.welfareAmount + entry.bonus;
 
-  // Company header
-  doc.setFontSize(compact ? 11 : 14);
+  // ---- Outer border ----
+  const totalH = compact ? 130 : 175;
+  doc.setDrawColor(60);
+  doc.setLineWidth(0.4);
+  doc.rect(x, y, w, totalH);
+
+  // ---- Header band ----
+  const headerH = compact ? 18 : 22;
+  doc.setFillColor(30, 58, 95);
+  doc.rect(x, y, w, headerH, 'F');
+
+  doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.text('Nishanth Engineering Works', x + w / 2, y + 5, { align: 'center' });
-  y += compact ? 7 : 9;
+  doc.setFontSize(compact ? 12 : 15);
+  doc.text('NISHANTH ENGINEERING WORKS', x + w / 2, y + (compact ? 7 : 8.5), { align: 'center' });
 
-  doc.setFontSize(compact ? 6 : 7);
   doc.setFont('helvetica', 'normal');
-  doc.text('102/1, Subbanaickenpalayam School, Street, Chinnavedampatti, Coimbatore, TN 641049', x + w / 2, y + 2, { align: 'center' });
-  y += compact ? 6 : 8;
+  doc.setFontSize(compact ? 6.5 : 7.5);
+  doc.text(
+    '102/1, Subbanaickenpalayam School Street, Chinnavedampatti, Coimbatore, TN 641049',
+    x + w / 2, y + (compact ? 12 : 14), { align: 'center' }
+  );
 
-  doc.setFontSize(compact ? 9 : 11);
   doc.setFont('helvetica', 'bold');
-  doc.text(`PAYSLIP - ${entry.month} ${entry.year || ''}`, x + w / 2, y + 3, { align: 'center' });
-  y += compact ? 7 : 10;
+  doc.setFontSize(compact ? 8 : 9);
+  doc.text(`PAYSLIP FOR ${entry.month.toUpperCase()} ${entry.year || ''}`, x + w / 2, y + (compact ? 16.5 : 19.5), { align: 'center' });
 
-  doc.setDrawColor(180);
-  doc.line(x, y, x + w, y);
-  y += 3;
+  doc.setTextColor(0, 0, 0);
+  y += headerH;
 
-  // Employee info
+  // ---- Employee details block ----
+  const infoH = compact ? 22 : 26;
+  const fs = compact ? 8.5 : 9.5;
+  const lh = compact ? 5 : 5.5;
+  const colA = x + 4;
+  const colB = x + w / 2 + 2;
+  const labelColor: [number, number, number] = [110, 110, 110];
+
   doc.setFontSize(fs);
-  doc.setFont('helvetica', 'normal');
-  const info = [
-    [`Emp ID: ${entry.employeeId}`, `Name: ${entry.employeeName}`],
-    [`Dept: ${emp?.department || '-'}`, `Designation: ${emp?.designation || '-'}`],
-    [`Salary: ${formatCurrency(entry.monthlySalary)}`, `Date: ${entry.date}`],
-  ];
-  info.forEach(row => {
-    doc.text(row[0], x, y + lh);
-    doc.text(row[1], x + 95, y + lh);
-    y += lh;
-  });
-  y += 2;
+  let iy = y + (compact ? 5 : 6);
+
+  const drawPair = (lx: number, label: string, value: string) => {
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...labelColor);
+    doc.text(label, lx, iy);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text(value, lx + 28, iy);
+  };
+
+  drawPair(colA, 'Employee ID', entry.employeeId);
+  drawPair(colB, 'Name', entry.employeeName);
+  iy += lh;
+  drawPair(colA, 'Department', emp?.department || '-');
+  drawPair(colB, 'Designation', emp?.designation || '-');
+  iy += lh;
+  drawPair(colA, 'Fixed Salary', money(entry.monthlySalary));
+  drawPair(colB, 'Pay Date', entry.date);
+
+  y += infoH;
+  doc.setDrawColor(200);
+  doc.setLineWidth(0.2);
   doc.line(x, y, x + w, y);
-  y += 3;
 
-  // Earnings table
-  const grossEarnings = entry.presentAmount + entry.holidayAmount + entry.otAmount + entry.welfareAmount + entry.bonus;
-
-  const tableData = [
-    ['Present Days', `${entry.presentDays} days`, 'Present Amount', formatCurrency(entry.presentAmount)],
-    ['Holidays', `${entry.holidays} days`, 'Holiday Amount', formatCurrency(entry.holidayAmount)],
-    ['OT Hours', `${entry.otHours} hrs`, 'OT Amount', formatCurrency(entry.otAmount)],
-    ['Welfare', '', 'Welfare Amount', formatCurrency(entry.welfareAmount)],
-    ['Bonus', '', 'Bonus', formatCurrency(entry.bonus)],
-    ['', '', 'Advance Deduction', formatCurrency(entry.advanceDeduction)],
-  ];
+  // ---- Earnings & Deductions side-by-side tables ----
+  const tableTop = y + 3;
+  const halfW = (w - 6) / 2;
 
   autoTable(doc, {
-    startY: y,
-    head: [['Item', 'Details', 'Component', 'Amount (₹)']],
-    body: tableData,
+    startY: tableTop,
+    head: [['EARNINGS', 'AMOUNT']],
+    body: [
+      [`Present (${entry.presentDays} days)`, money(entry.presentAmount)],
+      [`Holiday (${entry.holidays} days)`, money(entry.holidayAmount)],
+      [`Overtime (${entry.otHours} hrs)`, money(entry.otAmount)],
+      ['Welfare', money(entry.welfareAmount)],
+      ['Bonus', money(entry.bonus)],
+      [{ content: 'Gross Earnings', styles: { fontStyle: 'bold', fillColor: [240, 244, 250] } },
+       { content: money(grossEarnings), styles: { fontStyle: 'bold', halign: 'right', fillColor: [240, 244, 250] } }],
+    ],
     theme: 'grid',
-    styles: { fontSize: compact ? 7 : 8, cellPadding: compact ? 1.5 : 2 },
-    headStyles: { fillColor: [30, 58, 95], fontSize: compact ? 7 : 8 },
-    margin: { left: x, right: x },
-    tableWidth: w,
+    styles: { fontSize: compact ? 7.5 : 8.5, cellPadding: compact ? 1.5 : 2, lineColor: [200, 200, 200] },
+    headStyles: { fillColor: [30, 58, 95], textColor: 255, fontSize: compact ? 7.5 : 8.5, halign: 'left' },
+    columnStyles: { 1: { halign: 'right' } },
+    margin: { left: x + 2 },
+    tableWidth: halfW,
   });
 
-  y = (doc as any).lastAutoTable.finalY + 4;
+  const earnEndY = (doc as any).lastAutoTable.finalY;
 
-  // Summary
-  doc.setFontSize(fs);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Gross Earnings:', x, y + lh);
-  doc.text(formatCurrency(grossEarnings), x + 80, y + lh, { align: 'right' });
-  doc.text('Total Deductions:', x + 100, y + lh);
-  doc.text(formatCurrency(entry.advanceDeduction), x + w, y + lh, { align: 'right' });
-  y += lh + 2;
+  autoTable(doc, {
+    startY: tableTop,
+    head: [['DEDUCTIONS', 'AMOUNT']],
+    body: [
+      ['Advance Deduction', money(entry.advanceDeduction)],
+      ['', ''],
+      ['', ''],
+      ['', ''],
+      ['', ''],
+      [{ content: 'Total Deductions', styles: { fontStyle: 'bold', fillColor: [250, 240, 240] } },
+       { content: money(entry.advanceDeduction), styles: { fontStyle: 'bold', halign: 'right', fillColor: [250, 240, 240] } }],
+    ],
+    theme: 'grid',
+    styles: { fontSize: compact ? 7.5 : 8.5, cellPadding: compact ? 1.5 : 2, lineColor: [200, 200, 200] },
+    headStyles: { fillColor: [120, 35, 35], textColor: 255, fontSize: compact ? 7.5 : 8.5, halign: 'left' },
+    columnStyles: { 1: { halign: 'right' } },
+    margin: { left: x + 4 + halfW },
+    tableWidth: halfW,
+  });
 
+  const dedEndY = (doc as any).lastAutoTable.finalY;
+  y = Math.max(earnEndY, dedEndY) + 4;
+
+  // ---- Net Payable band ----
+  const netH = compact ? 10 : 12;
+  doc.setFillColor(30, 58, 95);
+  doc.rect(x + 2, y, w - 4, netH, 'F');
+  doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(compact ? 10 : 12);
-  doc.text('Net Payable:', x, y + lh);
-  doc.text(formatCurrency(entry.netPayable), x + 80, y + lh, { align: 'right' });
+  doc.text('NET PAYABLE', x + 6, y + (compact ? 6.5 : 8));
+  doc.text(money(entry.netPayable), x + w - 6, y + (compact ? 6.5 : 8), { align: 'right' });
+  doc.setTextColor(0, 0, 0);
+  y += netH + (compact ? 4 : 8);
 
+  // ---- Footer / signatures (full only) ----
   if (!compact) {
-    y += 18;
-    doc.setFontSize(7);
     doc.setFont('helvetica', 'normal');
-    doc.text('This is a system generated payslip', x, y);
-    doc.line(x + 110, y, x + 145, y);
-    doc.text('Authorized Signature', x + 112, y + 4);
-    doc.line(x + 150, y, x + w, y);
-    doc.text('Company Seal', x + 158, y + 4);
+    doc.setFontSize(7);
+    doc.setTextColor(120, 120, 120);
+    doc.text('This is a computer generated payslip and does not require a signature.', x + w / 2, y + 4, { align: 'center' });
+
+    y += 14;
+    doc.setDrawColor(150);
+    doc.line(x + 10, y, x + 60, y);
+    doc.line(x + w - 60, y, x + w - 10, y);
+    doc.setTextColor(80, 80, 80);
+    doc.setFontSize(8);
+    doc.text('Employee Signature', x + 35, y + 4, { align: 'center' });
+    doc.text('Authorized Signatory', x + w - 35, y + 4, { align: 'center' });
+    doc.setTextColor(0, 0, 0);
   }
 }
 
@@ -167,10 +224,10 @@ export function exportPayrollPDF(entries: PayrollEntry[]) {
     startY: 28,
     head: [['Emp ID', 'Name', 'Salary', 'Present', 'Pres Amt', 'Holidays', 'Hol Amt', 'OT Hrs', 'OT Amt', 'Welfare', 'Adv Ded', 'Bonus', 'Net Pay']],
     body: entries.map(e => [
-      e.employeeId, e.employeeName, formatCurrency(e.monthlySalary),
-      e.presentDays, formatCurrency(e.presentAmount), e.holidays, formatCurrency(e.holidayAmount),
-      e.otHours, formatCurrency(e.otAmount), formatCurrency(e.welfareAmount),
-      formatCurrency(e.advanceDeduction), formatCurrency(e.bonus), formatCurrency(e.netPayable),
+      e.employeeId, e.employeeName, money(e.monthlySalary),
+      e.presentDays, money(e.presentAmount), e.holidays, money(e.holidayAmount),
+      e.otHours, money(e.otAmount), money(e.welfareAmount),
+      money(e.advanceDeduction), money(e.bonus), money(e.netPayable),
     ]),
     styles: { fontSize: 7, cellPadding: 2 },
     headStyles: { fillColor: [30, 58, 95] },
