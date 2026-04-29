@@ -3,9 +3,9 @@ import { useHR } from '@/context/HRContext';
 import { MONTHS, getYearOptions } from '@/types/hr';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, Download } from 'lucide-react';
+import { FileText, Download, FileSpreadsheet } from 'lucide-react';
 import PayslipTemplate from '@/components/PayslipTemplate';
-import { generatePayslipPDF, generateBulkPayslipPDF } from '@/utils/pdfExport';
+import { generatePayslipPDF, generateBulkPayslipPDF, exportPayslipsExcel } from '@/utils/pdfExport';
 
 export default function PayslipPage() {
   const { employees, payroll } = useHR();
@@ -67,7 +67,7 @@ export default function PayslipPage() {
                 <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="full">Full Page (1 per page)</SelectItem>
-                  <SelectItem value="compact">Compact (2-3 per page)</SelectItem>
+                  <SelectItem value="compact">Compact (4 per page)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -78,14 +78,24 @@ export default function PayslipPage() {
           </div>
           <div className="ml-auto flex gap-2">
             {!bulkMode && selectedEntry && (
-              <Button onClick={() => generatePayslipPDF(selectedEntry, employees)}>
-                <Download className="w-4 h-4 mr-2" /> Download PDF
-              </Button>
+              <>
+                <Button variant="outline" onClick={() => exportPayslipsExcel([selectedEntry], employees)}>
+                  <FileSpreadsheet className="w-4 h-4 mr-2" /> Excel
+                </Button>
+                <Button onClick={() => generatePayslipPDF(selectedEntry, employees)}>
+                  <Download className="w-4 h-4 mr-2" /> Download PDF
+                </Button>
+              </>
             )}
             {bulkMode && monthEntries.length > 0 && (
-              <Button onClick={() => generateBulkPayslipPDF(monthEntries, employees, bulkLayout)}>
-                <Download className="w-4 h-4 mr-2" /> Download Bulk PDF
-              </Button>
+              <>
+                <Button variant="outline" onClick={() => exportPayslipsExcel(monthEntries, employees)}>
+                  <FileSpreadsheet className="w-4 h-4 mr-2" /> Download Excel
+                </Button>
+                <Button onClick={() => generateBulkPayslipPDF(monthEntries, employees, bulkLayout)}>
+                  <Download className="w-4 h-4 mr-2" /> Download Bulk PDF
+                </Button>
+              </>
             )}
           </div>
         </div>
