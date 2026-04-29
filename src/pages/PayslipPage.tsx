@@ -77,25 +77,28 @@ export default function PayslipPage() {
             <Button variant={bulkMode ? 'default' : 'outline'} onClick={() => setBulkMode(true)}>Bulk Generate</Button>
           </div>
           <div className="ml-auto flex gap-2">
+            {monthEntries.length > 0 && (
+              <Button
+                variant="outline"
+                className="bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white border-emerald-600"
+                onClick={() => exportPayslipsExcel(
+                  !bulkMode && selectedEntry ? [selectedEntry] : monthEntries,
+                  employees
+                )}
+              >
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                Download Excel {!bulkMode && selectedEntry ? '' : `(${monthEntries.length})`}
+              </Button>
+            )}
             {!bulkMode && selectedEntry && (
-              <>
-                <Button variant="outline" onClick={() => exportPayslipsExcel([selectedEntry], employees)}>
-                  <FileSpreadsheet className="w-4 h-4 mr-2" /> Excel
-                </Button>
-                <Button onClick={() => generatePayslipPDF(selectedEntry, employees)}>
-                  <Download className="w-4 h-4 mr-2" /> Download PDF
-                </Button>
-              </>
+              <Button onClick={() => generatePayslipPDF(selectedEntry, employees)}>
+                <Download className="w-4 h-4 mr-2" /> Download PDF
+              </Button>
             )}
             {bulkMode && monthEntries.length > 0 && (
-              <>
-                <Button variant="outline" onClick={() => exportPayslipsExcel(monthEntries, employees)}>
-                  <FileSpreadsheet className="w-4 h-4 mr-2" /> Download Excel
-                </Button>
-                <Button onClick={() => generateBulkPayslipPDF(monthEntries, employees, bulkLayout)}>
-                  <Download className="w-4 h-4 mr-2" /> Download Bulk PDF
-                </Button>
-              </>
+              <Button onClick={() => generateBulkPayslipPDF(monthEntries, employees, bulkLayout)}>
+                <Download className="w-4 h-4 mr-2" /> Download Bulk PDF
+              </Button>
             )}
           </div>
         </div>
