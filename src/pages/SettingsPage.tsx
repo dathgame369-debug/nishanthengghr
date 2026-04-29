@@ -201,10 +201,10 @@ export default function SettingsPage() {
               <Input value={roleForm.name} onChange={e => setRoleForm(f => ({ ...f, name: e.target.value }))} placeholder="Enter role name" />
             </div>
             <div><label className="text-sm font-medium block mb-1">Department (optional)</label>
-              <Select value={roleForm.department} onValueChange={v => setRoleForm(f => ({ ...f, department: v }))}>
+              <Select value={roleForm.department || '__none__'} onValueChange={v => setRoleForm(f => ({ ...f, department: v === '__none__' ? '' : v }))}>
                 <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="__none__">None</SelectItem>
                   {activeDepts.map(d => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}
                 </SelectContent>
               </Select>
