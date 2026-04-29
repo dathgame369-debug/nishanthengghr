@@ -7,8 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Wallet, Plus, Pencil } from 'lucide-react';
+import { Wallet, Plus, Pencil, Trash2 } from 'lucide-react';
 import { formatCurrency } from '@/types/hr';
 
 export default function AdvanceManagementPage() {
@@ -16,6 +17,7 @@ export default function AdvanceManagementPage() {
   const { toast } = useToast();
   const [showAdd, setShowAdd] = useState(false);
   const [editAdv, setEditAdv] = useState<Advance | null>(null);
+  const [deleteAdv, setDeleteAdv] = useState<Advance | null>(null);
   const [form, setForm] = useState({
     employeeId: '', advanceDate: '', advanceAmount: '', deductionType: 'Manual' as 'Manual' | 'EMI',
     monthlyDeductionAmount: '', notes: '',
@@ -45,6 +47,13 @@ export default function AdvanceManagementPage() {
     setAdvances(prev => prev.map(a => a.id === editAdv.id ? editAdv : a));
     setEditAdv(null);
     toast({ title: 'Updated' });
+  };
+
+  const handleDelete = () => {
+    if (!deleteAdv) return;
+    setAdvances(prev => prev.filter(a => a.id !== deleteAdv.id));
+    toast({ title: 'Deleted', description: `Advance for ${deleteAdv.employeeName} removed` });
+    setDeleteAdv(null);
   };
 
   return (
@@ -89,7 +98,10 @@ export default function AdvanceManagementPage() {
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <Button variant="ghost" size="icon" onClick={() => setEditAdv({ ...adv })}><Pencil className="w-4 h-4" /></Button>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => setEditAdv({ ...adv })}><Pencil className="w-4 h-4" /></Button>
+                    <Button variant="ghost" size="icon" onClick={() => setDeleteAdv(adv)} className="text-destructive hover:text-destructive"><Trash2 className="w-4 h-4" /></Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -147,6 +159,22 @@ export default function AdvanceManagementPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirm */}
+      <AlertDialog open={!!deleteAdv} onOpenChange={() => setDeleteAdv(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Advance?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteAdv && `This will permanently delete the ${formatCurrency(deleteAdv.advanceAmount)} advance for ${deleteAdv.employeeName}. This action cannot be undone.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
