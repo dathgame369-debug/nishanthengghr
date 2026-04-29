@@ -27,14 +27,14 @@ export default function PayslipPage() {
             <FileText className="w-5 h-5 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold font-heading text-foreground">Payslip Generator</h1>
+            <h1 className="text-xl sm:text-2xl font-bold font-heading text-foreground">Payslip Generator</h1>
             <p className="text-sm text-muted-foreground">Generate individual or bulk payslips</p>
           </div>
         </div>
       </div>
 
-      <div className="bg-card rounded-xl p-6 card-shadow border border-border mb-6">
-        <div className="flex flex-wrap items-end gap-4">
+      <div className="bg-card rounded-xl p-4 sm:p-6 card-shadow border border-border mb-6">
+        <div className="flex flex-wrap items-end gap-3 sm:gap-4">
           <div>
             <label className="text-sm font-medium block mb-1.5">Month</label>
             <Select value={selectedMonth} onValueChange={setSelectedMonth}>
@@ -76,7 +76,7 @@ export default function PayslipPage() {
             <Button variant={bulkMode ? 'outline' : 'default'} onClick={() => setBulkMode(false)}>Individual</Button>
             <Button variant={bulkMode ? 'default' : 'outline'} onClick={() => setBulkMode(true)}>Bulk Generate</Button>
           </div>
-          <div className="ml-auto flex gap-2">
+          <div className="sm:ml-auto flex gap-2 flex-wrap w-full sm:w-auto">
             {monthEntries.length > 0 && (
               <Button
                 variant="outline"
