@@ -71,14 +71,14 @@ export default function AdvanceManagementPage() {
         <Button onClick={() => setShowAdd(true)}><Plus className="w-4 h-4 mr-2" /> Add Advance</Button>
       </div>
 
-      <div className="bg-card rounded-xl card-shadow border border-border overflow-hidden">
-        <Table>
+      <div className="bg-card rounded-xl card-shadow border border-border overflow-x-auto">
+        <Table className="min-w-[980px]">
           <TableHeader>
             <TableRow className="bg-muted/50">
               <TableHead>Emp ID</TableHead><TableHead>Name</TableHead><TableHead>Date</TableHead>
               <TableHead className="text-right">Amount</TableHead><TableHead>Type</TableHead>
               <TableHead className="text-right">Monthly Ded.</TableHead><TableHead className="text-right">Total Ded.</TableHead>
-              <TableHead className="text-right">Balance</TableHead><TableHead>Status</TableHead><TableHead>Actions</TableHead>
+              <TableHead className="text-right">Balance</TableHead><TableHead>Status</TableHead><TableHead className="sticky right-0 bg-muted/50 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -97,10 +97,10 @@ export default function AdvanceManagementPage() {
                     {adv.status}
                   </Badge>
                 </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => setEditAdv({ ...adv })}><Pencil className="w-4 h-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => setDeleteAdv(adv)} className="text-destructive hover:text-destructive"><Trash2 className="w-4 h-4" /></Button>
+                <TableCell className="sticky right-0 bg-card">
+                  <div className="flex items-center justify-end gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setEditAdv({ ...adv })}><Pencil className="w-4 h-4" />Edit</Button>
+                    <Button variant="destructive" size="sm" onClick={() => setDeleteAdv(adv)}><Trash2 className="w-4 h-4" />Delete</Button>
                   </div>
                 </TableCell>
               </TableRow>
