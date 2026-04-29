@@ -39,11 +39,11 @@ export default function DashboardPage() {
   return (
     <div className="animate-fade-in">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold font-heading text-foreground">Dashboard</h1>
+        <h1 className="text-xl sm:text-2xl font-bold font-heading text-foreground">Dashboard</h1>
         <p className="text-sm text-muted-foreground">Nishanth Engineering Works — HR Overview</p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-6">
         {stats.map(s => (
           <Card key={s.label} className="card-shadow">
             <CardContent className="p-4 flex items-center gap-3">
@@ -60,20 +60,20 @@ export default function DashboardPage() {
       </div>
 
       <div className="bg-card rounded-xl p-4 card-shadow border border-border mb-6">
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-32 sm:w-40"><SelectValue /></SelectTrigger>
             <SelectContent>{MONTHS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
           </Select>
           <Select value={String(selectedYear)} onValueChange={v => setSelectedYear(Number(v))}>
-            <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-24 sm:w-28"><SelectValue /></SelectTrigger>
             <SelectContent>{getYearOptions().map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
           </Select>
-          <div className="relative flex-1 max-w-xs">
+          <div className="relative flex-1 min-w-[160px] max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search employee..." className="pl-9" />
           </div>
-          <div className="ml-auto flex gap-2 flex-wrap">
+          <div className="sm:ml-auto flex gap-2 flex-wrap w-full sm:w-auto">
             <Button variant="outline" size="sm" onClick={() => navigate('/add-employee')}><UserPlus className="w-4 h-4 mr-1" /> Add Employee</Button>
             <Button variant="outline" size="sm" onClick={() => exportPayrollPDF(monthEntries)}><Download className="w-4 h-4 mr-1" /> PDF</Button>
             <Button variant="outline" size="sm" onClick={() => exportPayrollExcel(monthEntries)}><FileSpreadsheet className="w-4 h-4 mr-1" /> Excel</Button>

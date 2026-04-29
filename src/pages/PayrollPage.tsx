@@ -185,17 +185,17 @@ export default function PayrollPage() {
   return (
     <div className="animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
             <CalendarDays className="w-5 h-5 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold font-heading text-foreground">Monthly Payroll</h1>
+            <h1 className="text-xl sm:text-2xl font-bold font-heading text-foreground">Monthly Payroll</h1>
             <p className="text-sm text-muted-foreground">Manage and process monthly payslips</p>
           </div>
         </div>
-        <Button onClick={openAdd} size="lg" className="shadow-md">
+        <Button onClick={openAdd} size="lg" className="shadow-md w-full sm:w-auto">
           <Plus className="w-4 h-4 mr-2" /> Add Payslip
         </Button>
       </div>
