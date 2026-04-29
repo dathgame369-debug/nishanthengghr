@@ -99,8 +99,8 @@ export default function AdvanceManagementPage() {
                 </TableCell>
                 <TableCell className="sticky right-0 bg-card">
                   <div className="flex items-center justify-end gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setEditAdv({ ...adv })}><Pencil className="w-4 h-4" />Edit</Button>
-                    <Button variant="destructive" size="sm" onClick={() => setDeleteAdv(adv)}><Trash2 className="w-4 h-4" />Delete</Button>
+                    <Button variant="ghost" size="icon" onClick={() => setEditAdv({ ...adv })}><Pencil className="w-4 h-4" /></Button>
+                    <Button variant="ghost" size="icon" onClick={() => setDeleteAdv(adv)} className="text-destructive hover:text-destructive"><Trash2 className="w-4 h-4" /></Button>
                   </div>
                 </TableCell>
               </TableRow>
