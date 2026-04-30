@@ -7,7 +7,6 @@ import {
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/add-employee', label: 'Add Employee', icon: UserPlus },
   { path: '/employees', label: 'Employee List', icon: Users },
   { path: '/payroll', label: 'Monthly Payroll', icon: CalendarDays },
   { path: '/advances', label: 'Advance Mgmt', icon: Wallet },

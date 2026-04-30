@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useHR } from '@/context/HRContext';
 import { Employee, formatCurrency } from '@/types/hr';
 import { Button } from '@/components/ui/button';
@@ -8,11 +9,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Pencil, Trash2, Search } from 'lucide-react';
+import { Users, Pencil, Trash2, Search, UserPlus } from 'lucide-react';
 
 export default function EmployeeListPage() {
   const { employees, setEmployees, payroll, setPayroll, departments, roles } = useHR();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [editEmp, setEditEmp] = useState<Employee | null>(null);
 
@@ -48,9 +50,14 @@ export default function EmployeeListPage() {
             <p className="text-sm text-muted-foreground">{employees.length} employees</p>
           </div>
         </div>
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or ID..." className="pl-9" />
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or ID..." className="pl-9" />
+          </div>
+          <Button onClick={() => navigate('/add-employee')} className="shadow-md w-full sm:w-auto">
+            <UserPlus className="w-4 h-4 mr-2" /> Add Employee
+          </Button>
         </div>
       </div>
 
