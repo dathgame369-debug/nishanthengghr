@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
@@ -18,8 +18,19 @@ export default function LoginPage() {
 
   if (isLoggedIn) return <Navigate to="/dashboard" replace />;
 
+  const usernameToEmail = (u: string) => {
+    const clean = u.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
+    return `${clean}@nishanth.local`;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const clean = username.trim();
+    if (!clean) {
+      toast({ title: 'Username required', variant: 'destructive' });
+      return;
+    }
+    const email = usernameToEmail(clean);
     setBusy(true);
     try {
       if (mode === 'signup') {
@@ -60,8 +71,15 @@ export default function LoginPage() {
           </h2>
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="text-sm font-medium text-foreground mb-1.5 block">Email</label>
-              <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required />
+              <label className="text-sm font-medium text-foreground mb-1.5 block">Username</label>
+              <Input
+                type="text"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                placeholder="Enter your username"
+                autoComplete="username"
+                required
+              />
             </div>
             <div>
               <label className="text-sm font-medium text-foreground mb-1.5 block">Password</label>
