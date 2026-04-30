@@ -368,7 +368,14 @@ export default function PayrollPage() {
 
             <div>
               <Label className="text-sm font-medium">Monthly Salary</Label>
-              <Input type="number" min="0" value={form.monthlySalary} onChange={e => setForm(f => ({ ...f, monthlySalary: parseFloat(e.target.value) || 0 }))} className="mt-1.5" />
+              <Input
+                type="number"
+                value={form.monthlySalary}
+                readOnly
+                disabled
+                className="mt-1.5 bg-muted cursor-not-allowed"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Auto-filled from employee record</p>
             </div>
             <div>
               <Label className="text-sm font-medium">Present Days</Label>
