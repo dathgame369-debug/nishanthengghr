@@ -44,7 +44,14 @@ export default function AdvanceManagementPage() {
 
   const handleEdit = () => {
     if (!editAdv) return;
-    setAdvances(prev => prev.map(a => a.id === editAdv.id ? editAdv : a));
+    const updated: Advance = {
+      ...editAdv,
+      remainingBalance: Math.max(0, editAdv.advanceAmount - editAdv.totalDeducted),
+    };
+    if (updated.remainingBalance <= 0 && updated.totalDeducted > 0) {
+      updated.status = 'Closed';
+    }
+    setAdvances(prev => prev.map(a => a.id === editAdv.id ? updated : a));
     setEditAdv(null);
     toast({ title: 'Updated' });
   };
@@ -145,7 +152,21 @@ export default function AdvanceManagementPage() {
           {editAdv && (
             <div className="space-y-4">
               <div><label className="text-sm font-medium block mb-1">Employee</label><Input value={`${editAdv.employeeId} - ${editAdv.employeeName}`} disabled className="bg-muted" /></div>
-              <div><label className="text-sm font-medium block mb-1">Advance Amount</label><Input value={formatCurrency(editAdv.advanceAmount)} disabled className="bg-muted" /></div>
+              <div>
+                <label className="text-sm font-medium block mb-1">Advance Amount (₹)</label>
+                <Input
+                  type="number"
+                  min={editAdv.totalDeducted}
+                  value={editAdv.advanceAmount}
+                  onChange={e => {
+                    const amt = parseFloat(e.target.value) || 0;
+                    setEditAdv({ ...editAdv, advanceAmount: amt, remainingBalance: Math.max(0, amt - editAdv.totalDeducted) });
+                  }}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Already deducted: {formatCurrency(editAdv.totalDeducted)} • Remaining: {formatCurrency(Math.max(0, editAdv.advanceAmount - editAdv.totalDeducted))}
+                </p>
+              </div>
               <div><label className="text-sm font-medium block mb-1">Monthly Deduction</label><Input type="number" value={editAdv.monthlyDeductionAmount} onChange={e => setEditAdv({ ...editAdv, monthlyDeductionAmount: parseFloat(e.target.value) || 0 })} /></div>
               <div><label className="text-sm font-medium block mb-1">Notes</label><Input value={editAdv.notes} onChange={e => setEditAdv({ ...editAdv, notes: e.target.value })} /></div>
               <div><label className="text-sm font-medium block mb-1">Status</label>
