@@ -198,7 +198,7 @@ export default function PayrollPage() {
   };
 
   const handleDownload = (entry: PayrollEntry) => {
-    generatePayslipPDF(entry, employees);
+    generatePayslipPDF(entry, employees, advances);
   };
 
   return (
