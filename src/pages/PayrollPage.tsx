@@ -40,7 +40,7 @@ const emptyForm = (): PayrollFormData => ({
 });
 
 export default function PayrollPage() {
-  const { employees, payroll, setPayroll, advances, setAdvances } = useHR();
+  const { employees, payroll, setPayroll, advances, setAdvances, roles } = useHR();
   const { toast } = useToast();
   const currentYear = new Date().getFullYear();
 
@@ -73,7 +73,12 @@ export default function PayrollPage() {
     return { count: filtered.length, totalNet, totalAdv };
   }, [filtered]);
 
-  const calc = calculatePayroll(form);
+  const formEmp = employees.find(e => e.id === form.employeeId);
+  const formRole = formEmp ? roles.find(r => r.name === formEmp.designation) : undefined;
+  const formWelfare = formRole
+    ? { enabled: !!formRole.welfareEnabled, rate: formRole.welfareRate || 0, basisHours: formRole.welfareBasisHours || 4 }
+    : { enabled: false, rate: 0, basisHours: 4 };
+  const calc = calculatePayroll(form, formWelfare);
 
   const openAdd = () => {
     setEditingId(null);
@@ -121,7 +126,11 @@ export default function PayrollPage() {
     const emp = employees.find(e => e.id === form.employeeId);
     if (!emp) return;
 
-    const calcResult = calculatePayroll(form);
+    const role = roles.find(r => r.name === emp.designation);
+    const welfare = role
+      ? { enabled: !!role.welfareEnabled, rate: role.welfareRate || 0, basisHours: role.welfareBasisHours || 4 }
+      : { enabled: false, rate: 0, basisHours: 4 };
+    const calcResult = calculatePayroll(form, welfare);
     const newEntry: PayrollEntry = {
       id: editingId || `PAY-${form.employeeId}-${form.month}-${form.year}-${Date.now()}`,
       employeeId: form.employeeId,
