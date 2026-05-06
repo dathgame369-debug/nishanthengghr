@@ -8,7 +8,7 @@ import PayslipTemplate from '@/components/PayslipTemplate';
 import { generatePayslipPDF, generateBulkPayslipPDF, exportPayslipsExcel } from '@/utils/pdfExport';
 
 export default function PayslipPage() {
-  const { employees, payroll } = useHR();
+  const { employees, payroll, advances } = useHR();
   const currentYear = new Date().getFullYear();
   const [selectedMonth, setSelectedMonth] = useState(MONTHS[new Date().getMonth()]);
   const [selectedYear, setSelectedYear] = useState(currentYear);
@@ -91,12 +91,12 @@ export default function PayslipPage() {
               </Button>
             )}
             {!bulkMode && selectedEntry && (
-              <Button onClick={() => generatePayslipPDF(selectedEntry, employees)}>
+              <Button onClick={() => generatePayslipPDF(selectedEntry, employees, advances)}>
                 <Download className="w-4 h-4 mr-2" /> Download PDF
               </Button>
             )}
             {bulkMode && monthEntries.length > 0 && (
-              <Button onClick={() => generateBulkPayslipPDF(monthEntries, employees, bulkLayout)}>
+              <Button onClick={() => generateBulkPayslipPDF(monthEntries, employees, bulkLayout, advances)}>
                 <Download className="w-4 h-4 mr-2" /> Download Bulk PDF
               </Button>
             )}
