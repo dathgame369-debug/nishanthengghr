@@ -8,8 +8,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { Settings, Plus, Pencil, Trash2, Search, Building2, Briefcase } from 'lucide-react';
+import { Settings, Plus, Pencil, Trash2, Search, Building2, Briefcase, HandCoins } from 'lucide-react';
 
 export default function SettingsPage() {
   const { departments, setDepartments, roles, setRoles } = useHR();
@@ -25,7 +26,10 @@ export default function SettingsPage() {
   const [roleSearch, setRoleSearch] = useState('');
   const [roleDialog, setRoleDialog] = useState(false);
   const [editRole, setEditRole] = useState<Role | null>(null);
-  const [roleForm, setRoleForm] = useState({ name: '', department: '', status: 'Active' as 'Active' | 'Inactive' });
+  const [roleForm, setRoleForm] = useState({
+    name: '', department: '', status: 'Active' as 'Active' | 'Inactive',
+    welfareEnabled: false, welfareRate: 0, welfareBasisHours: 4,
+  });
 
   const filteredDepts = departments.filter(d => d.name.toLowerCase().includes(deptSearch.toLowerCase()));
   const filteredRoles = roles.filter(r => r.name.toLowerCase().includes(roleSearch.toLowerCase()));
@@ -54,18 +58,47 @@ export default function SettingsPage() {
   };
 
   // Role handlers
-  const openAddRole = () => { setEditRole(null); setRoleForm({ name: '', department: '', status: 'Active' }); setRoleDialog(true); };
-  const openEditRole = (r: Role) => { setEditRole(r); setRoleForm({ name: r.name, department: r.department, status: r.status }); setRoleDialog(true); };
+  const openAddRole = () => {
+    setEditRole(null);
+    setRoleForm({ name: '', department: '', status: 'Active', welfareEnabled: false, welfareRate: 0, welfareBasisHours: 4 });
+    setRoleDialog(true);
+  };
+  const openEditRole = (r: Role) => {
+    setEditRole(r);
+    setRoleForm({
+      name: r.name, department: r.department, status: r.status,
+      welfareEnabled: !!r.welfareEnabled,
+      welfareRate: r.welfareRate ?? 0,
+      welfareBasisHours: r.welfareBasisHours ?? 4,
+    });
+    setRoleDialog(true);
+  };
   const saveRole = () => {
     if (!roleForm.name.trim()) { toast({ title: 'Error', description: 'Role name required', variant: 'destructive' }); return; }
     const duplicate = roles.find(r => r.name.toLowerCase() === roleForm.name.trim().toLowerCase() && r.id !== editRole?.id);
     if (duplicate) { toast({ title: 'Error', description: 'Role already exists', variant: 'destructive' }); return; }
     if (editRole) {
-      setRoles(prev => prev.map(r => r.id === editRole.id ? { ...r, name: roleForm.name.trim(), department: roleForm.department, status: roleForm.status } : r));
+      setRoles(prev => prev.map(r => r.id === editRole.id ? {
+        ...r,
+        name: roleForm.name.trim(),
+        department: roleForm.department,
+        status: roleForm.status,
+        welfareEnabled: roleForm.welfareEnabled,
+        welfareRate: roleForm.welfareEnabled ? Number(roleForm.welfareRate) || 0 : 0,
+        welfareBasisHours: roleForm.welfareEnabled ? (Number(roleForm.welfareBasisHours) || 1) : 4,
+      } : r));
       toast({ title: 'Updated', description: `Role "${roleForm.name}" updated` });
     } else {
       const id = `ROLE${String(roles.length + 1).padStart(3, '0')}`;
-      setRoles(prev => [...prev, { id, name: roleForm.name.trim(), department: roleForm.department, status: roleForm.status }]);
+      setRoles(prev => [...prev, {
+        id,
+        name: roleForm.name.trim(),
+        department: roleForm.department,
+        status: roleForm.status,
+        welfareEnabled: roleForm.welfareEnabled,
+        welfareRate: roleForm.welfareEnabled ? Number(roleForm.welfareRate) || 0 : 0,
+        welfareBasisHours: roleForm.welfareEnabled ? (Number(roleForm.welfareBasisHours) || 1) : 4,
+      }]);
       toast({ title: 'Added', description: `Role "${roleForm.name}" added` });
     }
     setRoleDialog(false);
@@ -145,7 +178,7 @@ export default function SettingsPage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead>ID</TableHead><TableHead>Role Name</TableHead><TableHead>Department</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead>
+                  <TableHead>ID</TableHead><TableHead>Role Name</TableHead><TableHead>Department</TableHead><TableHead>Welfare</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -154,6 +187,16 @@ export default function SettingsPage() {
                     <TableCell className="font-medium text-primary text-sm">{r.id}</TableCell>
                     <TableCell className="font-medium">{r.name}</TableCell>
                     <TableCell>{r.department || '—'}</TableCell>
+                    <TableCell className="text-sm">
+                      {r.welfareEnabled ? (
+                        <span className="inline-flex items-center gap-1 text-foreground">
+                          <HandCoins className="w-3.5 h-3.5 text-primary" />
+                          ₹{r.welfareRate} / {r.welfareBasisHours} hrs
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={r.status === 'Active' ? 'default' : 'secondary'}
                         className={r.status === 'Active' ? 'bg-success text-success-foreground' : ''}>{r.status}</Badge>
@@ -165,7 +208,7 @@ export default function SettingsPage() {
                   </TableRow>
                 ))}
                 {filteredRoles.length === 0 && (
-                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No roles found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No roles found</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -214,6 +257,35 @@ export default function SettingsPage() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent><SelectItem value="Active">Active</SelectItem><SelectItem value="Inactive">Inactive</SelectItem></SelectContent>
               </Select>
+            </div>
+            <div className="border-t border-border pt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-sm font-medium block">Enable Welfare</label>
+                  <p className="text-xs text-muted-foreground">Auto-calculate welfare from OT hours for this role</p>
+                </div>
+                <Switch
+                  checked={roleForm.welfareEnabled}
+                  onCheckedChange={v => setRoleForm(f => ({ ...f, welfareEnabled: v }))}
+                />
+              </div>
+              {roleForm.welfareEnabled && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium block mb-1">Welfare Rate (₹)</label>
+                    <Input type="number" min={0} value={roleForm.welfareRate}
+                      onChange={e => setRoleForm(f => ({ ...f, welfareRate: parseFloat(e.target.value) || 0 }))} />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium block mb-1">Basis Hours</label>
+                    <Input type="number" min={1} value={roleForm.welfareBasisHours}
+                      onChange={e => setRoleForm(f => ({ ...f, welfareBasisHours: parseFloat(e.target.value) || 1 }))} />
+                  </div>
+                  <p className="col-span-2 text-xs text-muted-foreground">
+                    Welfare = (OT Hours / Basis Hours) × Rate. Example: ₹{roleForm.welfareRate || 0} for every {roleForm.welfareBasisHours || 0} OT hours.
+                  </p>
+                </div>
+              )}
             </div>
             <Button onClick={saveRole} className="w-full">{editRole ? 'Update' : 'Add'} Role</Button>
           </div>

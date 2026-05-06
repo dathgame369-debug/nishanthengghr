@@ -189,6 +189,9 @@ export type Database = {
           id: string
           name: string
           status: string
+          welfare_basis_hours: number
+          welfare_enabled: boolean
+          welfare_rate: number
         }
         Insert: {
           created_at?: string
@@ -196,6 +199,9 @@ export type Database = {
           id: string
           name: string
           status?: string
+          welfare_basis_hours?: number
+          welfare_enabled?: boolean
+          welfare_rate?: number
         }
         Update: {
           created_at?: string
@@ -203,6 +209,9 @@ export type Database = {
           id?: string
           name?: string
           status?: string
+          welfare_basis_hours?: number
+          welfare_enabled?: boolean
+          welfare_rate?: number
         }
         Relationships: []
       }

@@ -55,6 +55,9 @@ export interface Role {
   name: string;
   department: string;
   status: 'Active' | 'Inactive';
+  welfareEnabled: boolean;
+  welfareRate: number;
+  welfareBasisHours: number;
 }
 
 export const MONTHS = [
@@ -75,7 +78,10 @@ export function getYearOptions(): number[] {
   return [current - 2, current - 1, current, current + 1];
 }
 
-export function calculatePayroll(entry: Partial<PayrollEntry> & { monthlySalary: number }): {
+export function calculatePayroll(
+  entry: Partial<PayrollEntry> & { monthlySalary: number },
+  welfare?: { enabled: boolean; rate: number; basisHours: number }
+): {
   presentAmount: number;
   holidayAmount: number;
   otAmount: number;
@@ -87,7 +93,10 @@ export function calculatePayroll(entry: Partial<PayrollEntry> & { monthlySalary:
   const presentAmount = perDay * (entry.presentDays || 0);
   const holidayAmount = perDay * (entry.holidays || 0);
   const otAmount = perHour * (entry.otHours || 0);
-  const welfareAmount = ((entry.otHours || 0) / 4) * 35;
+  let welfareAmount = 0;
+  if (welfare && welfare.enabled && welfare.basisHours > 0) {
+    welfareAmount = ((entry.otHours || 0) / welfare.basisHours) * welfare.rate;
+  }
   const netPayable = presentAmount + holidayAmount + otAmount + welfareAmount + (entry.bonus || 0) - (entry.advanceDeduction || 0);
   return { presentAmount, holidayAmount, otAmount, welfareAmount, netPayable };
 }
