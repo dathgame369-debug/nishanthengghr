@@ -72,8 +72,18 @@ const payFromRow = (r: any): PayrollEntry => ({
 });
 const deptFromRow = (r: any): Department => ({ id: r.id, name: r.name, status: r.status });
 const deptToRow = (d: Department) => ({ id: d.id, name: d.name, status: d.status });
-const roleFromRow = (r: any): Role => ({ id: r.id, name: r.name, department: r.department || '', status: r.status });
-const roleToRow = (r: Role) => ({ id: r.id, name: r.name, department: r.department, status: r.status });
+const roleFromRow = (r: any): Role => ({
+  id: r.id, name: r.name, department: r.department || '', status: r.status,
+  welfareEnabled: !!r.welfare_enabled,
+  welfareRate: Number(r.welfare_rate ?? 0),
+  welfareBasisHours: Number(r.welfare_basis_hours ?? 4),
+});
+const roleToRow = (r: Role) => ({
+  id: r.id, name: r.name, department: r.department, status: r.status,
+  welfare_enabled: !!r.welfareEnabled,
+  welfare_rate: Number(r.welfareRate ?? 0),
+  welfare_basis_hours: Number(r.welfareBasisHours ?? 4),
+});
 
 // Diff helper: figure out adds / updates / deletes between prev & next
 function diffArrays<T extends { id: string }>(prev: T[], next: T[]) {
