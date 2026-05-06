@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { PayrollEntry, Employee } from '@/types/hr';
+import { PayrollEntry, Employee, Advance } from '@/types/hr';
 
 // Helvetica (jsPDF default) doesn't support the ₹ glyph — it renders as a box
 // or superscript "1". Use "Rs." prefix for reliable rendering across viewers.
@@ -8,21 +8,23 @@ function money(n: number): string {
   return 'Rs. ' + (n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-export function generatePayslipPDF(entry: PayrollEntry, employees: Employee[]) {
+export function generatePayslipPDF(entry: PayrollEntry, employees: Employee[], advances: Advance[] = []) {
   const emp = employees.find(e => e.id === entry.employeeId);
   const doc = new jsPDF('p', 'mm', 'a4');
-  renderPayslip(doc, entry, emp, 15, false);
+  const adv = advances.find(a => a.employeeId === entry.employeeId);
+  renderPayslip(doc, entry, emp, 15, false, adv);
   doc.save(`Payslip_${entry.employeeId}_${entry.month}_${entry.year || ''}.pdf`);
 }
 
-export function generateBulkPayslipPDF(entries: PayrollEntry[], employees: Employee[], layout: 'full' | 'compact') {
+export function generateBulkPayslipPDF(entries: PayrollEntry[], employees: Employee[], layout: 'full' | 'compact', advances: Advance[] = []) {
   const doc = new jsPDF('p', 'mm', 'a4');
 
   if (layout === 'full') {
     entries.forEach((entry, i) => {
       if (i > 0) doc.addPage();
       const emp = employees.find(e => e.id === entry.employeeId);
-      renderPayslip(doc, entry, emp, 15, false);
+      const adv = advances.find(a => a.employeeId === entry.employeeId);
+      renderPayslip(doc, entry, emp, 15, false, adv);
     });
   } else {
     // 4 payslips per A4 page in a 2x2 grid
@@ -41,7 +43,8 @@ export function generateBulkPayslipPDF(entries: PayrollEntry[], employees: Emplo
       const x = margin + col * (slipW + gap);
       const y = margin + row * (slipH + gap);
       const emp = employees.find(e => e.id === entry.employeeId);
-      renderPayslipMini(doc, entry, emp, x, y, slipW, slipH);
+      const adv = advances.find(a => a.employeeId === entry.employeeId);
+      renderPayslipMini(doc, entry, emp, x, y, slipW, slipH, adv);
     });
   }
 
@@ -49,7 +52,7 @@ export function generateBulkPayslipPDF(entries: PayrollEntry[], employees: Emplo
 }
 
 // Compact payslip rendering for 4-up grid layout (positioned by x,y,w,h)
-function renderPayslipMini(doc: jsPDF, entry: PayrollEntry, emp: Employee | undefined, x: number, y: number, w: number, h: number) {
+function renderPayslipMini(doc: jsPDF, entry: PayrollEntry, emp: Employee | undefined, x: number, y: number, w: number, h: number, adv?: Advance) {
   const grossEarnings =
     entry.presentAmount + entry.holidayAmount + entry.otAmount + entry.welfareAmount + entry.bonus;
 
@@ -127,9 +130,9 @@ function renderPayslipMini(doc: jsPDF, entry: PayrollEntry, emp: Employee | unde
     head: [['DEDUCTIONS', 'AMT']],
     body: [
       ['Advance', money(entry.advanceDeduction)],
-      ['', ''],
-      ['', ''],
-      ['', ''],
+      ['Total Adv', money(adv?.advanceAmount || 0)],
+      ['Total Ded', money(adv?.totalDeducted || 0)],
+      ['Remaining', money(adv ? Math.max(0, adv.advanceAmount - adv.totalDeducted) : 0)],
       ['', ''],
       [{ content: 'Total', styles: { fontStyle: 'bold', fillColor: [250, 240, 240] } },
        { content: money(entry.advanceDeduction), styles: { fontStyle: 'bold', halign: 'right', fillColor: [250, 240, 240] } }],
@@ -194,7 +197,7 @@ export function exportPayslipsExcel(entries: PayrollEntry[], employees: Employee
   });
 }
 
-function renderPayslip(doc: jsPDF, entry: PayrollEntry, emp: Employee | undefined, startY: number, compact = false) {
+function renderPayslip(doc: jsPDF, entry: PayrollEntry, emp: Employee | undefined, startY: number, compact = false, adv?: Advance) {
   const x = 15;          // left edge
   const w = 180;         // content width
   let y = startY;
@@ -297,9 +300,9 @@ function renderPayslip(doc: jsPDF, entry: PayrollEntry, emp: Employee | undefine
     head: [['DEDUCTIONS', 'AMOUNT']],
     body: [
       ['Advance Deduction', money(entry.advanceDeduction)],
-      ['', ''],
-      ['', ''],
-      ['', ''],
+      ['Total Advance', money(adv?.advanceAmount || 0)],
+      ['Total Deducted', money(adv?.totalDeducted || 0)],
+      ['Remaining Advance', money(adv ? Math.max(0, adv.advanceAmount - adv.totalDeducted) : 0)],
       ['', ''],
       [{ content: 'Total Deductions', styles: { fontStyle: 'bold', fillColor: [250, 240, 240] } },
        { content: money(entry.advanceDeduction), styles: { fontStyle: 'bold', halign: 'right', fillColor: [250, 240, 240] } }],
