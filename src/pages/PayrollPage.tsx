@@ -150,10 +150,20 @@ export default function PayrollPage() {
     if (editingId) {
       const old = payroll.find(p => p.id === editingId);
       const advDelta = newEntry.advanceDeduction - (old?.advanceDeduction || 0);
+      const activeAdv2 = advances.find(a => a.employeeId === form.employeeId && a.status === 'Active');
+      if (activeAdv2 && advDelta > activeAdv2.remainingBalance) {
+        toast({ title: 'Exceeds remaining advance', description: `Deduction cannot exceed remaining ₹${activeAdv2.remainingBalance.toLocaleString()}`, variant: 'destructive' });
+        return;
+      }
       if (advDelta !== 0) updateAdvance(form.employeeId, advDelta, `${form.month} ${form.year}`);
       setPayroll(prev => prev.map(p => p.id === editingId ? newEntry : p));
       toast({ title: 'Updated', description: `Payslip for ${emp.name} updated` });
     } else {
+      const activeAdv2 = advances.find(a => a.employeeId === form.employeeId && a.status === 'Active');
+      if (activeAdv2 && newEntry.advanceDeduction > activeAdv2.remainingBalance) {
+        toast({ title: 'Exceeds remaining advance', description: `Deduction cannot exceed remaining ₹${activeAdv2.remainingBalance.toLocaleString()}`, variant: 'destructive' });
+        return;
+      }
       if (newEntry.advanceDeduction > 0) updateAdvance(form.employeeId, newEntry.advanceDeduction, `${form.month} ${form.year}`);
       setPayroll(prev => [...prev, newEntry]);
       toast({ title: 'Saved', description: `Payslip for ${emp.name} created` });
