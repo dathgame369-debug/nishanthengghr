@@ -10,7 +10,6 @@ export default function PayslipTemplate({ entry, compact = false }: PayslipProps
   const { employees, advances } = useHR();
   const emp = employees.find(e => e.id === entry.employeeId);
   const adv = advances.find(a => a.employeeId === entry.employeeId);
-  const totalAdvAmount = adv?.advanceAmount || 0;
   const totalDeducted = adv?.totalDeducted || 0;
   const remainingAdv = adv ? Math.max(0, adv.advanceAmount - adv.totalDeducted) : 0;
   const grossEarnings = entry.presentAmount + entry.holidayAmount + entry.otAmount + entry.welfareAmount + entry.bonus;
@@ -63,14 +62,8 @@ export default function PayslipTemplate({ entry, compact = false }: PayslipProps
           <h3 className={`${text} font-semibold text-foreground mb-1 uppercase tracking-wider`}>Deductions</h3>
           <table className={`w-full ${text}`}>
             <tbody>
-              <Row label="Advance Deduction" value={formatCurrency(entry.advanceDeduction)} py={py} />
-              {adv && (
-                <>
-                  <Row label="Total Advance" value={formatCurrency(totalAdvAmount)} py={py} />
-                  <Row label="Total Deducted" value={formatCurrency(totalDeducted)} py={py} />
-                  <Row label="Remaining Advance" value={formatCurrency(remainingAdv)} py={py} />
-                </>
-              )}
+              <Row label="Total Advance Deduction" value={formatCurrency(totalDeducted)} py={py} />
+              <Row label="Remaining Advance Amount" value={formatCurrency(remainingAdv)} py={py} />
             </tbody>
           </table>
         </div>
