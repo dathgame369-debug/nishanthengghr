@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useHR } from '@/context/HRContext';
-import { Building2, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
+import logo from '@/assets/logo.png';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -57,9 +58,8 @@ export default function LoginPage() {
       style={{ background: 'linear-gradient(135deg, hsl(215,70%,95%), hsl(210,20%,98%), hsl(174,60%,95%))' }}>
       <div className="w-full max-w-md animate-fade-in">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg, hsl(215,70%,28%), hsl(215,70%,38%))' }}>
-            <Building2 className="w-8 h-8 text-primary-foreground" />
+          <div className="w-20 h-20 rounded-2xl mx-auto mb-4 flex items-center justify-center bg-white shadow-md overflow-hidden">
+            <img src={logo} alt="Nishanth Engineering Works" className="w-16 h-16 object-contain" />
           </div>
           <h1 className="text-2xl font-bold font-heading text-foreground">Nishanth Engineering Works</h1>
           <p className="text-sm text-muted-foreground mt-1">HR Management System</p>
