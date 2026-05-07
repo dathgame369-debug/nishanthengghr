@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { PayrollEntry, Employee, Advance } from '@/types/hr';
+import { logoBase64 } from '@/assets/logoBase64';
 
 // Helvetica (jsPDF default) doesn't support the ₹ glyph — it renders as a box
 // or superscript "1". Use "Rs." prefix for reliable rendering across viewers.
@@ -69,6 +70,7 @@ function renderPayslipMini(doc: jsPDF, entry: PayrollEntry, emp: Employee | unde
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.text('NISHANTH ENGINEERING WORKS', x + w / 2, y + 5, { align: 'center' });
+  try { doc.addImage(logoBase64, 'PNG', x + 1.5, y + 2, 10, 10); } catch {}
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(5.5);
   doc.text('Chinnavedampatti, Coimbatore, TN 641049', x + w / 2, y + 8.5, { align: 'center' });
@@ -220,6 +222,7 @@ function renderPayslip(doc: jsPDF, entry: PayrollEntry, emp: Employee | undefine
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(compact ? 12 : 15);
   doc.text('NISHANTH ENGINEERING WORKS', x + w / 2, y + (compact ? 7 : 8.5), { align: 'center' });
+  try { doc.addImage(logoBase64, 'PNG', x + 3, y + 3, compact ? 12 : 16, compact ? 12 : 16); } catch {}
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(compact ? 6.5 : 7.5);

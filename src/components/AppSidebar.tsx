@@ -2,8 +2,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useHR } from '@/context/HRContext';
 import {
   LayoutDashboard, UserPlus, Users, CalendarDays,
-  Wallet, FileText, LogOut, Building2, Settings, X
+  Wallet, FileText, LogOut, Settings, X
 } from 'lucide-react';
+import logo from '@/assets/logo.png';
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -45,8 +46,8 @@ export default function AppSidebar({ mobileOpen = false, onClose }: AppSidebarPr
         style={{ background: 'linear-gradient(180deg, hsl(215, 70%, 18%), hsl(215, 70%, 26%))' }}
       >
       <div className="flex items-center gap-3 px-5 py-6 border-b border-sidebar-border relative">
-        <div className="w-10 h-10 rounded-lg bg-sidebar-primary flex items-center justify-center">
-          <Building2 className="w-5 h-5 text-sidebar-primary-foreground" />
+        <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center overflow-hidden">
+          <img src={logo} alt="Nishanth Engineering Works" className="w-9 h-9 object-contain" />
         </div>
         <div>
           <h1 className="text-sm font-bold text-sidebar-foreground leading-tight">Nishanth</h1>
