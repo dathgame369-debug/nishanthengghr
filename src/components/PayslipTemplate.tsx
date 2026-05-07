@@ -63,14 +63,8 @@ export default function PayslipTemplate({ entry, compact = false }: PayslipProps
           <h3 className={`${text} font-semibold text-foreground mb-1 uppercase tracking-wider`}>Deductions</h3>
           <table className={`w-full ${text}`}>
             <tbody>
-              <Row label="Advance Deduction" value={formatCurrency(entry.advanceDeduction)} py={py} />
-              {adv && (
-                <>
-                  <Row label="Total Advance" value={formatCurrency(totalAdvAmount)} py={py} />
-                  <Row label="Total Deducted" value={formatCurrency(totalDeducted)} py={py} />
-                  <Row label="Remaining Advance" value={formatCurrency(remainingAdv)} py={py} />
-                </>
-              )}
+              <Row label="Total Advance Deduction" value={formatCurrency(totalDeducted)} py={py} />
+              <Row label="Remaining Advance Amount" value={formatCurrency(remainingAdv)} py={py} />
             </tbody>
           </table>
         </div>
