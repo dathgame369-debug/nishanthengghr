@@ -3,7 +3,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
-  ({ className, type, ...props }, ref) => {
+  ({ className, type, onFocus, onClick, ...props }, ref) => {
     return (
       <input
         type={type}
@@ -12,6 +12,23 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
           className,
         )}
         ref={ref}
+        onFocus={(e) => {
+          if (type === "number") {
+            // Auto-select content so users can immediately overwrite default 0
+            try { e.currentTarget.select(); } catch {}
+          }
+          onFocus?.(e);
+        }}
+        onClick={(e) => {
+          if (type === "number") {
+            const el = e.currentTarget;
+            // If nothing is selected yet, select all (handles second-click cases)
+            if (el.selectionStart === el.selectionEnd) {
+              try { el.select(); } catch {}
+            }
+          }
+          onClick?.(e);
+        }}
         {...props}
       />
     );
