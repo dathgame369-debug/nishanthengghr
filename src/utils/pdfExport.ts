@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { PayrollEntry, Employee, Advance } from '@/types/hr';
+import { logoBase64 } from '@/assets/logoBase64';
 
 // Helvetica (jsPDF default) doesn't support the ₹ glyph — it renders as a box
 // or superscript "1". Use "Rs." prefix for reliable rendering across viewers.
