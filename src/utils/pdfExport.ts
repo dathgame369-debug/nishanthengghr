@@ -28,21 +28,22 @@ export function generateBulkPayslipPDF(entries: PayrollEntry[], employees: Emplo
       renderPayslip(doc, entry, emp, 15, false, adv);
     });
   } else {
-    // 4 payslips per A4 page in a 2x2 grid
-    const margin = 8;
-    const gap = 6;
+    // 6 payslips per A4 page in a 2 cols x 3 rows grid
+    const margin = 6;
+    const gapX = 5;
+    const gapY = 4;
     const pageW = 210;
     const pageH = 297;
-    const slipW = (pageW - margin * 2 - gap) / 2;   // ~94mm
-    const slipH = (pageH - margin * 2 - gap) / 2;   // ~138mm
-    const perPage = 4;
+    const slipW = (pageW - margin * 2 - gapX) / 2;       // ~96mm
+    const slipH = (pageH - margin * 2 - gapY * 2) / 3;   // ~92mm
+    const perPage = 6;
     entries.forEach((entry, i) => {
       const pos = i % perPage;
       if (i > 0 && pos === 0) doc.addPage();
       const col = pos % 2;
       const row = Math.floor(pos / 2);
-      const x = margin + col * (slipW + gap);
-      const y = margin + row * (slipH + gap);
+      const x = margin + col * (slipW + gapX);
+      const y = margin + row * (slipH + gapY);
       const emp = employees.find(e => e.id === entry.employeeId);
       const adv = advances.find(a => a.employeeId === entry.employeeId);
       renderPayslipMini(doc, entry, emp, x, y, slipW, slipH, adv);
