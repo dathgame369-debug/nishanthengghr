@@ -10,7 +10,6 @@ export default function PayslipTemplate({ entry, compact = false }: PayslipProps
   const { employees, advances } = useHR();
   const emp = employees.find(e => e.id === entry.employeeId);
   const adv = advances.find(a => a.employeeId === entry.employeeId);
-  const totalAdvAmount = adv?.advanceAmount || 0;
   const totalDeducted = adv?.totalDeducted || 0;
   const remainingAdv = adv ? Math.max(0, adv.advanceAmount - adv.totalDeducted) : 0;
   const grossEarnings = entry.presentAmount + entry.holidayAmount + entry.otAmount + entry.welfareAmount + entry.bonus;
