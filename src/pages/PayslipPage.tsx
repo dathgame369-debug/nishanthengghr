@@ -1,23 +1,101 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useHR } from '@/context/HRContext';
 import { MONTHS, getYearOptions } from '@/types/hr';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, Download, FileSpreadsheet } from 'lucide-react';
+import { MultiSelect } from '@/components/ui/multi-select';
+import { FileText, Download, FileSpreadsheet, Eye, RotateCcw, Files } from 'lucide-react';
 import PayslipTemplate from '@/components/PayslipTemplate';
-import { generatePayslipPDF, generateBulkPayslipPDF, exportPayslipsExcel } from '@/utils/pdfExport';
+import {
+  generatePayslipPDF,
+  generateMultiPayslipPDF,
+  generateBulkPayslipPDF,
+  exportPayslipsExcel,
+} from '@/utils/pdfExport';
 
 export default function PayslipPage() {
   const { employees, payroll, advances } = useHR();
   const currentYear = new Date().getFullYear();
-  const [selectedMonth, setSelectedMonth] = useState(MONTHS[new Date().getMonth()]);
-  const [selectedYear, setSelectedYear] = useState(currentYear);
-  const [selectedEmpId, setSelectedEmpId] = useState('');
-  const [bulkMode, setBulkMode] = useState(false);
-  const [bulkLayout, setBulkLayout] = useState<'full' | 'compact'>('compact');
 
-  const monthEntries = payroll.filter(p => p.month === selectedMonth && (p.year || currentYear) === selectedYear);
-  const selectedEntry = monthEntries.find(p => p.employeeId === selectedEmpId);
+  // Filters
+  const [months, setMonths] = useState<string[]>([MONTHS[new Date().getMonth()]]);
+  const [years, setYears] = useState<string[]>([String(currentYear)]);
+  const [empIds, setEmpIds] = useState<string[]>([]);
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [designations, setDesignations] = useState<string[]>([]);
+  const [statuses, setStatuses] = useState<string[]>([]);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [bulkLayout, setBulkLayout] = useState<'full' | 'compact'>('full');
+  const [previewMode, setPreviewMode] = useState<'compact' | 'full'>('compact');
+
+  // Option lists derived from data
+  const monthOptions = MONTHS.map(m => ({ value: m, label: m }));
+  const yearOptions = getYearOptions().map(y => ({ value: String(y), label: String(y) }));
+  const empOptions = employees.map(e => ({ value: e.id, label: `${e.id} — ${e.name}` }));
+  const deptOptions = useMemo(
+    () => Array.from(new Set(employees.map(e => e.department).filter(Boolean))).map(d => ({ value: d, label: d })),
+    [employees]
+  );
+  const desigOptions = useMemo(
+    () => Array.from(new Set(employees.map(e => e.designation).filter(Boolean))).map(d => ({ value: d, label: d })),
+    [employees]
+  );
+  const statusOptions = [
+    { value: 'Active', label: 'Active' },
+    { value: 'Inactive', label: 'Inactive' },
+  ];
+
+  const resetFilters = () => {
+    setMonths([MONTHS[new Date().getMonth()]]);
+    setYears([String(currentYear)]);
+    setEmpIds([]);
+    setDepartments([]);
+    setDesignations([]);
+    setStatuses([]);
+    setDateFrom('');
+    setDateTo('');
+  };
+
+  // Apply all filters
+  const filteredEntries = useMemo(() => {
+    const empById = new Map(employees.map(e => [e.id, e]));
+    return payroll.filter(p => {
+      if (months.length && !months.includes(p.month)) return false;
+      if (years.length && !years.includes(String(p.year || currentYear))) return false;
+      if (empIds.length && !empIds.includes(p.employeeId)) return false;
+
+      const emp = empById.get(p.employeeId);
+      if (departments.length && (!emp || !departments.includes(emp.department))) return false;
+      if (designations.length && (!emp || !designations.includes(emp.designation))) return false;
+      if (statuses.length && (!emp || !statuses.includes(emp.status))) return false;
+
+      if (dateFrom && p.date && p.date < dateFrom) return false;
+      if (dateTo && p.date && p.date > dateTo) return false;
+
+      return true;
+    }).sort((a, b) => {
+      // group by employee then by year/month
+      if (a.employeeName !== b.employeeName) return a.employeeName.localeCompare(b.employeeName);
+      const ay = a.year || currentYear, by = b.year || currentYear;
+      if (ay !== by) return ay - by;
+      return MONTHS.indexOf(a.month) - MONTHS.indexOf(b.month);
+    });
+  }, [payroll, employees, months, years, empIds, departments, designations, statuses, dateFrom, dateTo, currentYear]);
+
+  const selectAllEmployees = () => setEmpIds(employees.map(e => e.id));
+
+  const downloadPDF = () => {
+    if (filteredEntries.length === 1) {
+      generatePayslipPDF(filteredEntries[0], employees, advances);
+    } else {
+      generateMultiPayslipPDF(filteredEntries, employees, advances,
+        `Payslips_${months.join('-') || 'All'}_${years.join('-') || ''}.pdf`);
+    }
+  };
+
+  const bulkCompact = () => generateBulkPayslipPDF(filteredEntries, employees, bulkLayout, advances);
 
   return (
     <div className="animate-fade-in">
@@ -28,105 +106,106 @@ export default function PayslipPage() {
           </div>
           <div>
             <h1 className="text-xl sm:text-2xl font-bold font-heading text-foreground">Payslip Generator</h1>
-            <p className="text-sm text-muted-foreground">Generate individual or bulk payslips</p>
+            <p className="text-sm text-muted-foreground">Filter, preview, and export payslips for any employees and months</p>
           </div>
         </div>
       </div>
 
-      <div className="bg-card rounded-xl p-4 sm:p-6 card-shadow border border-border mb-6">
-        <div className="flex flex-wrap items-end gap-3 sm:gap-4">
+      {/* Filters */}
+      <div className="bg-card rounded-xl p-4 sm:p-6 card-shadow border border-border mb-6 space-y-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           <div>
-            <label className="text-sm font-medium block mb-1.5">Month</label>
-            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-              <SelectContent>{MONTHS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
-            </Select>
+            <label className="text-xs font-medium text-muted-foreground block mb-1.5">Months</label>
+            <MultiSelect options={monthOptions} selected={months} onChange={setMonths} placeholder="All months" width="w-full" />
           </div>
           <div>
-            <label className="text-sm font-medium block mb-1.5">Year</label>
-            <Select value={String(selectedYear)} onValueChange={v => setSelectedYear(Number(v))}>
-              <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
-              <SelectContent>{getYearOptions().map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+            <label className="text-xs font-medium text-muted-foreground block mb-1.5">Years</label>
+            <MultiSelect options={yearOptions} selected={years} onChange={setYears} placeholder="All years" width="w-full" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground block mb-1.5">Employees</label>
+            <MultiSelect options={empOptions} selected={empIds} onChange={setEmpIds} placeholder="All employees" width="w-full" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground block mb-1.5">Department</label>
+            <MultiSelect options={deptOptions} selected={departments} onChange={setDepartments} placeholder="Any department" width="w-full" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground block mb-1.5">Designation</label>
+            <MultiSelect options={desigOptions} selected={designations} onChange={setDesignations} placeholder="Any designation" width="w-full" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground block mb-1.5">Status</label>
+            <MultiSelect options={statusOptions} selected={statuses} onChange={setStatuses} placeholder="Any status" width="w-full" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground block mb-1.5">Pay Date From</label>
+            <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground block mb-1.5">Pay Date To</label>
+            <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2 items-center pt-2 border-t border-border">
+          <Button variant="outline" size="sm" onClick={selectAllEmployees}>
+            <Files className="w-4 h-4 mr-1.5" /> Select All Employees
+          </Button>
+          <Button variant="outline" size="sm" onClick={resetFilters}>
+            <RotateCcw className="w-4 h-4 mr-1.5" /> Reset Filters
+          </Button>
+          <span className="text-xs text-muted-foreground ml-2">
+            {filteredEntries.length} payslip{filteredEntries.length === 1 ? '' : 's'} matched
+          </span>
+
+          <div className="sm:ml-auto flex gap-2 flex-wrap">
+            <Select value={previewMode} onValueChange={v => setPreviewMode(v as 'compact' | 'full')}>
+              <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="compact">Compact preview</SelectItem>
+                <SelectItem value="full">Full preview</SelectItem>
+              </SelectContent>
             </Select>
-          </div>
-          {!bulkMode && (
-            <div>
-              <label className="text-sm font-medium block mb-1.5">Employee</label>
-              <Select value={selectedEmpId} onValueChange={setSelectedEmpId}>
-                <SelectTrigger className="w-56"><SelectValue placeholder="Select employee" /></SelectTrigger>
-                <SelectContent>
-                  {monthEntries.map(e => <SelectItem key={e.employeeId} value={e.employeeId}>{e.employeeId} - {e.employeeName}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-          {bulkMode && (
-            <div>
-              <label className="text-sm font-medium block mb-1.5">Layout</label>
-              <Select value={bulkLayout} onValueChange={v => setBulkLayout(v as 'full' | 'compact')}>
-                <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="full">Full Page (1 per page)</SelectItem>
-                  <SelectItem value="compact">Compact (4 per page)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-          <div className="flex gap-2">
-            <Button variant={bulkMode ? 'outline' : 'default'} onClick={() => setBulkMode(false)}>Individual</Button>
-            <Button variant={bulkMode ? 'default' : 'outline'} onClick={() => setBulkMode(true)}>Bulk Generate</Button>
-          </div>
-          <div className="sm:ml-auto flex gap-2 flex-wrap w-full sm:w-auto">
-            {monthEntries.length > 0 && (
-              <Button
-                variant="outline"
-                className="bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white border-emerald-600"
-                onClick={() => exportPayslipsExcel(
-                  !bulkMode && selectedEntry ? [selectedEntry] : monthEntries,
-                  employees
-                )}
-              >
-                <FileSpreadsheet className="w-4 h-4 mr-2" />
-                Download Excel {!bulkMode && selectedEntry ? '' : `(${monthEntries.length})`}
-              </Button>
-            )}
-            {!bulkMode && selectedEntry && (
-              <Button onClick={() => generatePayslipPDF(selectedEntry, employees, advances)}>
-                <Download className="w-4 h-4 mr-2" /> Download PDF
-              </Button>
-            )}
-            {bulkMode && monthEntries.length > 0 && (
-              <Button onClick={() => generateBulkPayslipPDF(monthEntries, employees, bulkLayout, advances)}>
-                <Download className="w-4 h-4 mr-2" /> Download Bulk PDF
-              </Button>
-            )}
+            <Select value={bulkLayout} onValueChange={v => setBulkLayout(v as 'full' | 'compact')}>
+              <SelectTrigger className="w-44 h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="full">Bulk: Full page</SelectItem>
+                <SelectItem value="compact">Bulk: 6 per page</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              className="bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white border-emerald-600"
+              disabled={!filteredEntries.length}
+              onClick={() => exportPayslipsExcel(filteredEntries, employees)}
+            >
+              <FileSpreadsheet className="w-4 h-4 mr-2" /> Download Excel
+            </Button>
+            <Button disabled={!filteredEntries.length} onClick={downloadPDF}>
+              <Download className="w-4 h-4 mr-2" /> Download PDF
+            </Button>
+            <Button variant="secondary" disabled={!filteredEntries.length} onClick={bulkCompact}>
+              <Files className="w-4 h-4 mr-2" /> Bulk Generate
+            </Button>
           </div>
         </div>
       </div>
 
-      {!bulkMode && selectedEntry && (
-        <div className="max-w-2xl mx-auto">
-          <PayslipTemplate entry={selectedEntry} />
-        </div>
-      )}
-
-      {!bulkMode && !selectedEntry && monthEntries.length > 0 && (
-        <div className="text-center py-12 text-muted-foreground">Select an employee to preview payslip</div>
-      )}
-
-      {monthEntries.length === 0 && (
+      {/* Preview */}
+      {filteredEntries.length === 0 ? (
         <div className="bg-card rounded-xl p-12 text-center card-shadow border border-border">
           <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-          <p className="text-muted-foreground">No payroll data for {selectedMonth} {selectedYear}. Process payroll first.</p>
+          <p className="text-muted-foreground">No payroll entries match the current filters.</p>
         </div>
-      )}
-
-      {bulkMode && monthEntries.length > 0 && (
+      ) : (
         <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">{monthEntries.length} payslips for {selectedMonth} {selectedYear}</p>
-          <div className={bulkLayout === 'compact' ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' : 'space-y-6'}>
-            {monthEntries.map(entry => (
-              <PayslipTemplate key={entry.id} entry={entry} compact={bulkLayout === 'compact'} />
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Eye className="w-4 h-4" /> Previewing {filteredEntries.length} payslip{filteredEntries.length === 1 ? '' : 's'}
+          </div>
+          <div className={previewMode === 'compact' ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' : 'space-y-6 max-w-2xl mx-auto'}>
+            {filteredEntries.map(entry => (
+              <PayslipTemplate key={entry.id} entry={entry} compact={previewMode === 'compact'} />
             ))}
           </div>
         </div>
