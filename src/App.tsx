@@ -13,6 +13,7 @@ import PayrollPage from "./pages/PayrollPage";
 import AdvanceManagementPage from "./pages/AdvanceManagementPage";
 import PayslipPage from "./pages/PayslipPage";
 import SettingsPage from "./pages/SettingsPage";
+import CompanySettingsPage from "./pages/CompanySettingsPage";
 import QuotationDashboard from "./pages/quotation/QuotationDashboard";
 import QuotationListPage from "./pages/quotation/QuotationListPage";
 import QuotationEditorPage from "./pages/quotation/QuotationEditorPage";
@@ -41,6 +42,7 @@ const App = () => (
                 <Route path="/advances" element={<AdvanceManagementPage />} />
                 <Route path="/payslip" element={<PayslipPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/company-settings" element={<CompanySettingsPage />} />
                 <Route path="/quotations/dashboard" element={<QuotationDashboard />} />
                 <Route path="/quotations" element={<QuotationListPage />} />
                 <Route path="/quotations/new" element={<QuotationEditorPage />} />
