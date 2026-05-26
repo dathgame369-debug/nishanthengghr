@@ -2,6 +2,7 @@ import { PayrollEntry, formatCurrency } from '@/types/hr';
 import { useHR } from '@/context/HRContext';
 import { numberToIndianWords } from '@/utils/numberToWords';
 import { buildPayslipBreakdown } from '@/utils/payslipBreakdown';
+import { useCompanyInfo } from '@/hooks/useCompanySettings';
 
 interface PayslipProps {
   entry: PayrollEntry;
@@ -10,6 +11,7 @@ interface PayslipProps {
 
 export default function PayslipTemplate({ entry, compact = false }: PayslipProps) {
   const { employees, advances } = useHR();
+  const [company] = useCompanyInfo();
   const emp = employees.find(e => e.id === entry.employeeId);
   const adv = advances.find(a => a.employeeId === entry.employeeId);
   const { earnings, deductions, grossSalary, totalDeductions, netSalary } =
@@ -25,10 +27,11 @@ export default function PayslipTemplate({ entry, compact = false }: PayslipProps
     >
       {/* Company header */}
       <div className="text-center border-b border-foreground/15 pb-3 mb-3">
-        <h2 className={`${headText} font-bold font-heading text-foreground`}>Nishanth Engineering Works</h2>
-        <p className={`${text} text-muted-foreground leading-tight`}>
-          102/1, Subbanaickenpalayam School Street, Chinnavedampatti, Coimbatore, Tamil Nadu 641049
-        </p>
+        <h2 className={`${headText} font-bold font-heading text-foreground`}>{company.name}</h2>
+        <p className={`${text} text-muted-foreground leading-tight whitespace-pre-line`}>{company.address}</p>
+        {company.phone && (
+          <p className={`${text} text-muted-foreground leading-tight`}>{company.phone}</p>
+        )}
         <div
           className={`mt-2 inline-block px-4 ${compact ? 'py-0.5' : 'py-1'} bg-primary text-primary-foreground rounded ${text} font-semibold tracking-wide`}
         >
