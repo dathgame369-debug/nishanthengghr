@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuotation } from '@/context/QuotationContext';
 import {
-  Quotation, QuotationItem, QuotationStatus, QUOTATION_STATUSES,
+  Quotation, QuotationItem, QuotationStatus, QUOTATION_STATUSES, QuotationSubLine,
   buildQuotationNumber, getFinancialYear,
 } from '@/types/quotation';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,22 @@ const todayStr = () => {
 };
 
 function newItem(slNo: number, quotationId: string): QuotationItem {
-  return { id: crypto.randomUUID(), quotationId, slNo, description: '', qty: '', rate: 0, amount: 0, qty2: '', rate2: 0, amount2: 0 };
+  return {
+    id: crypto.randomUUID(), quotationId, slNo, description: '',
+    qty: '', rate: 0, amount: 0, subLines: [],
+  };
+}
+
+// Split "VS/NEW/3/26-27" → { prefix:"VS/NEW", seq:"3", fy:"26-27" }
+function splitQuotationNumber(s: string, fallbackPrefix: string) {
+  const parts = (s || '').split('/');
+  if (parts.length >= 3) {
+    const fy = parts[parts.length - 1];
+    const seq = parts[parts.length - 2];
+    const prefix = parts.slice(0, parts.length - 2).join('/');
+    return { prefix: prefix || fallbackPrefix, seq, fy };
+  }
+  return { prefix: fallbackPrefix, seq: '', fy: getFinancialYear() };
 }
 
 export default function QuotationEditorPage() {
@@ -69,18 +84,42 @@ export default function QuotationEditorPage() {
   const computed = useMemo(() => {
     const enriched = lineItems.map(it => {
       const qtyNum = parseFloat((it.qty || '').replace(/[^0-9.]/g, '')) || 0;
-      const qty2Num = parseFloat((it.qty2 || '').replace(/[^0-9.]/g, '')) || 0;
       const amount = it.rate && qtyNum ? qtyNum * it.rate : it.amount;
-      const amount2 = it.rate2 && qty2Num ? qty2Num * (it.rate2 || 0) : (it.amount2 || 0);
-      return { ...it, amount, amount2 };
+      const subLines = (it.subLines || []).map(s => {
+        const qn = parseFloat((s.qty || '').replace(/[^0-9.]/g, '')) || 0;
+        const amt = s.rate && qn ? qn * s.rate : s.amount;
+        return { ...s, amount: amt };
+      });
+      return { ...it, amount, subLines };
     });
-    const subtotal = enriched.reduce((s, it) => s + (it.amount || 0) + (it.amount2 || 0), 0);
+    const subtotal = enriched.reduce(
+      (s, it) => s + (it.amount || 0) + (it.subLines || []).reduce((a, sl) => a + (sl.amount || 0), 0),
+      0,
+    );
     const taxAmount = (subtotal * (form.taxPercent || 0)) / 100;
     return { enriched, subtotal, taxAmount, total: subtotal + taxAmount };
   }, [lineItems, form.taxPercent]);
 
   const setItem = (idx: number, patch: Partial<QuotationItem>) => {
     setLineItems(prev => prev.map((it, i) => i === idx ? { ...it, ...patch } : it));
+  };
+  const setSub = (idx: number, sIdx: number, patch: Partial<QuotationSubLine>) => {
+    setLineItems(prev => prev.map((it, i) => {
+      if (i !== idx) return it;
+      const subs = [...(it.subLines || [])];
+      subs[sIdx] = { ...subs[sIdx], ...patch };
+      return { ...it, subLines: subs };
+    }));
+  };
+  const addSub = (idx: number) => {
+    setLineItems(prev => prev.map((it, i) => i === idx
+      ? { ...it, subLines: [...(it.subLines || []), { qty: '', rate: 0, amount: 0 }] }
+      : it));
+  };
+  const removeSub = (idx: number, sIdx: number) => {
+    setLineItems(prev => prev.map((it, i) => i === idx
+      ? { ...it, subLines: (it.subLines || []).filter((_, j) => j !== sIdx) }
+      : it));
   };
   const addRow = () => setLineItems(prev => [...prev, newItem(prev.length + 1, form.id)]);
   const removeRow = (idx: number) => {
