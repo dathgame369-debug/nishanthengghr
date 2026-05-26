@@ -1,4 +1,4 @@
-import { PayrollEntry, Advance } from '@/types/hr';
+import { PayrollEntry, Advance, Employee } from '@/types/hr';
 import { PayslipComponents, getPayslipComponents } from '@/utils/companySettings';
 
 export interface PayslipLine {
@@ -23,19 +23,21 @@ export function buildPayslipBreakdown(
   entry: PayrollEntry,
   adv?: Advance,
   components?: PayslipComponents,
+  emp?: Employee,
 ): PayslipBreakdown {
   const cfg = components || getPayslipComponents();
   const e: any = entry;
+  const E: any = emp || {};
 
   const basic = e.basic ?? (entry.presentAmount + entry.holidayAmount); // attendance-derived basic
-  const hra = e.hra ?? 0;
-  const special = e.specialAllowance ?? 0;
-  const medical = e.medicalAllowance ?? 0;
-  const travel = e.travelAllowance ?? 0;
+  const hra = e.hra ?? E.hra ?? 0;
+  const special = e.specialAllowance ?? E.specialAllowance ?? 0;
+  const medical = e.medicalAllowance ?? E.medicalAllowance ?? 0;
+  const travel = e.travelAllowance ?? E.travelAllowance ?? 0;
   const overtime = entry.otAmount || 0;
   const incentives = e.incentives ?? entry.welfareAmount ?? 0;
   const bonus = entry.bonus || 0;
-  const otherEarn = e.otherEarnings ?? 0;
+  const otherEarn = e.otherEarnings ?? E.otherEarnings ?? 0;
 
   const allEarnings: Array<PayslipLine & { on: boolean }> = [
     { label: 'Basic Salary', amount: basic, on: true },
@@ -50,12 +52,12 @@ export function buildPayslipBreakdown(
   ];
   const earnings: PayslipLine[] = allEarnings.filter(r => r.on).map(({ label, amount }) => ({ label, amount }));
 
-  const pf = e.pf ?? 0;
-  const esi = e.esi ?? 0;
-  const profTax = e.professionalTax ?? 0;
+  const pf = e.pf ?? E.pf ?? 0;
+  const esi = e.esi ?? E.esi ?? 0;
+  const profTax = e.professionalTax ?? E.professionalTax ?? 0;
   const advanceRecovery = entry.advanceDeduction || 0;
-  const loanRecovery = e.loanRecovery ?? 0;
-  const otherDed = e.otherDeductions ?? 0;
+  const loanRecovery = e.loanRecovery ?? E.loanRecovery ?? 0;
+  const otherDed = e.otherDeductions ?? E.otherDeductions ?? 0;
 
   const allDeductions: Array<PayslipLine & { on: boolean }> = [
     { label: 'PF', amount: pf, on: cfg.pf },
