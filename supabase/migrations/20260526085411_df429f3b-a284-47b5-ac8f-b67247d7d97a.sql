@@ -1,0 +1,14 @@
+ALTER TABLE public.customers
+  ADD COLUMN IF NOT EXISTS number_prefix text NOT NULL DEFAULT '';
+
+ALTER TABLE public.employees
+  ADD COLUMN IF NOT EXISTS hra numeric NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS special_allowance numeric NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS medical_allowance numeric NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS travel_allowance numeric NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS other_earnings numeric NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS pf numeric NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS esi numeric NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS professional_tax numeric NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS loan_recovery numeric NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS other_deductions numeric NOT NULL DEFAULT 0;

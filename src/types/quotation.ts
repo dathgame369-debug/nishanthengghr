@@ -7,6 +7,7 @@ export interface Customer {
   phone: string;
   email: string;
   status: 'Active' | 'Inactive';
+  numberPrefix: string;
 }
 
 export interface QuotationItem {

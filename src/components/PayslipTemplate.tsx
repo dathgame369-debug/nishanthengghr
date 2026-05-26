@@ -15,7 +15,8 @@ export default function PayslipTemplate({ entry, compact = false }: PayslipProps
   const emp = employees.find(e => e.id === entry.employeeId);
   const adv = advances.find(a => a.employeeId === entry.employeeId);
   const { earnings, deductions, grossSalary, totalDeductions, netSalary } =
-    buildPayslipBreakdown(entry, adv);
+    buildPayslipBreakdown(entry, adv, undefined, emp);
+  const remainingAdvance = adv ? Math.max(0, adv.advanceAmount - adv.totalDeducted) : 0;
 
   const text = compact ? 'text-[10px]' : 'text-xs';
   const headText = compact ? 'text-sm' : 'text-lg';
@@ -81,6 +82,12 @@ export default function PayslipTemplate({ entry, compact = false }: PayslipProps
           <span>Net Salary</span>
           <span className="font-mono text-primary">{formatCurrency(netSalary)}</span>
         </div>
+        {adv && (
+          <div className={`flex justify-between mt-1 ${text}`}>
+            <span className="text-muted-foreground">Remaining Advance</span>
+            <span className="font-mono font-semibold text-destructive">{formatCurrency(remainingAdvance)}</span>
+          </div>
+        )}
         <p className={`${text} text-muted-foreground mt-1 italic`}>
           In words: {numberToIndianWords(netSalary)}
         </p>

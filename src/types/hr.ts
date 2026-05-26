@@ -7,6 +7,17 @@ export interface Employee {
   designation: string;
   phone: string;
   status: 'Active' | 'Inactive';
+  // Optional payslip components (per-employee). Used only when enabled in Company Settings.
+  hra?: number;
+  specialAllowance?: number;
+  medicalAllowance?: number;
+  travelAllowance?: number;
+  otherEarnings?: number;
+  pf?: number;
+  esi?: number;
+  professionalTax?: number;
+  loanRecovery?: number;
+  otherDeductions?: number;
 }
 
 export interface Advance {

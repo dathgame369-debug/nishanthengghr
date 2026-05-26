@@ -38,9 +38,11 @@ export default function QuotationSettingsPage() {
       <div className="bg-card rounded-xl card-shadow border border-border p-6 space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-sm font-medium block mb-1">Number Prefix</label>
+            <label className="text-sm font-medium block mb-1">Default Number Prefix</label>
             <Input value={form.numberPrefix} onChange={e => setForm(f => ({ ...f, numberPrefix: e.target.value }))} />
-            <p className="text-xs text-muted-foreground mt-1">e.g. <code>VS/NEW</code> → <code>VS/NEW/38/26-27</code></p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Fallback only — each customer has its own prefix on the <strong>Customers</strong> page.
+            </p>
           </div>
           <div>
             <label className="text-sm font-medium block mb-1">Next Sequence Number</label>

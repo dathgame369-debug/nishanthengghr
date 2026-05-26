@@ -10,9 +10,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Users, Pencil, Trash2, Search, UserPlus } from 'lucide-react';
+import { usePayslipComponents } from '@/hooks/useCompanySettings';
+import { PayslipComponents } from '@/utils/companySettings';
 
 export default function EmployeeListPage() {
   const { employees, setEmployees, payroll, setPayroll, departments, roles } = useHR();
+  const [components] = usePayslipComponents();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
@@ -36,6 +39,27 @@ export default function EmployeeListPage() {
   const handleDelete = (id: string) => {
     setEmployees(prev => prev.filter(e => e.id !== id));
     toast({ title: 'Deleted', description: 'Employee removed' });
+  };
+
+  const earningFields: { key: keyof PayslipComponents; emp: keyof Employee; label: string }[] = [
+    { key: 'hra', emp: 'hra', label: 'HRA' },
+    { key: 'specialAllowance', emp: 'specialAllowance', label: 'Special Allowance' },
+    { key: 'medicalAllowance', emp: 'medicalAllowance', label: 'Medical Allowance' },
+    { key: 'travelAllowance', emp: 'travelAllowance', label: 'Travel Allowance' },
+    { key: 'otherEarnings', emp: 'otherEarnings', label: 'Other Earnings' },
+  ];
+  const deductionFields: { key: keyof PayslipComponents; emp: keyof Employee; label: string }[] = [
+    { key: 'pf', emp: 'pf', label: 'PF' },
+    { key: 'esi', emp: 'esi', label: 'ESI' },
+    { key: 'professionalTax', emp: 'professionalTax', label: 'Professional Tax' },
+    { key: 'loanRecovery', emp: 'loanRecovery', label: 'Loan Recovery' },
+    { key: 'otherDeductions', emp: 'otherDeductions', label: 'Other Deductions' },
+  ];
+  const enabledEarnings = earningFields.filter(f => components[f.key]);
+  const enabledDeductions = deductionFields.filter(f => components[f.key]);
+
+  const setEmpNum = (key: keyof Employee, value: number) => {
+    setEditEmp(prev => prev ? ({ ...prev, [key]: value } as Employee) : prev);
   };
 
   return (
@@ -67,6 +91,8 @@ export default function EmployeeListPage() {
             <TableRow className="bg-muted/50">
               <TableHead>Emp ID</TableHead><TableHead>Name</TableHead><TableHead>Department</TableHead>
               <TableHead>Designation</TableHead><TableHead className="text-right">Fixed Salary</TableHead>
+              {enabledEarnings.map(f => <TableHead key={f.key} className="text-right">{f.label}</TableHead>)}
+              {enabledDeductions.map(f => <TableHead key={f.key} className="text-right">{f.label}</TableHead>)}
               <TableHead>Joining</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -78,6 +104,16 @@ export default function EmployeeListPage() {
                 <TableCell>{emp.department}</TableCell>
                 <TableCell>{emp.designation}</TableCell>
                 <TableCell className="text-right font-mono">{formatCurrency(emp.fixedSalary)}</TableCell>
+                {enabledEarnings.map(f => (
+                  <TableCell key={f.key} className="text-right font-mono text-xs">
+                    {formatCurrency(Number(emp[f.emp] ?? 0))}
+                  </TableCell>
+                ))}
+                {enabledDeductions.map(f => (
+                  <TableCell key={f.key} className="text-right font-mono text-xs">
+                    {formatCurrency(Number(emp[f.emp] ?? 0))}
+                  </TableCell>
+                ))}
                 <TableCell>{emp.dateOfJoining || '—'}</TableCell>
                 <TableCell>
                   <Badge variant={emp.status === 'Active' ? 'default' : 'secondary'}
@@ -92,14 +128,14 @@ export default function EmployeeListPage() {
               </TableRow>
             ))}
             {filtered.length === 0 && (
-              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No employees found</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8 + enabledEarnings.length + enabledDeductions.length} className="text-center py-8 text-muted-foreground">No employees found</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
       </div>
 
       <Dialog open={!!editEmp} onOpenChange={() => setEditEmp(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Edit Employee</DialogTitle></DialogHeader>
           {editEmp && (
             <div className="space-y-4">
@@ -137,6 +173,43 @@ export default function EmployeeListPage() {
                   <SelectContent><SelectItem value="Active">Active</SelectItem><SelectItem value="Inactive">Inactive</SelectItem></SelectContent>
                 </Select>
               </div>
+
+              {(enabledEarnings.length > 0 || enabledDeductions.length > 0) && (
+                <div className="border-t border-border pt-4 space-y-3">
+                  <p className="text-xs text-muted-foreground">
+                    Payslip components enabled in <strong>Company Settings</strong>. Values flow to payslips.
+                  </p>
+                  {enabledEarnings.length > 0 && (
+                    <div>
+                      <h4 className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-2">Earnings</h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        {enabledEarnings.map(f => (
+                          <div key={f.key}>
+                            <label className="text-sm font-medium block mb-1">{f.label} (₹)</label>
+                            <Input type="number" value={Number(editEmp[f.emp] ?? 0)}
+                              onChange={e => setEmpNum(f.emp, parseFloat(e.target.value) || 0)} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {enabledDeductions.length > 0 && (
+                    <div>
+                      <h4 className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-2">Deductions</h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        {enabledDeductions.map(f => (
+                          <div key={f.key}>
+                            <label className="text-sm font-medium block mb-1">{f.label} (₹)</label>
+                            <Input type="number" value={Number(editEmp[f.emp] ?? 0)}
+                              onChange={e => setEmpNum(f.emp, parseFloat(e.target.value) || 0)} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <Button onClick={handleSave} className="w-full">Save Changes</Button>
             </div>
           )}

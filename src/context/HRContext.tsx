@@ -30,11 +30,26 @@ const HRContext = createContext<HRContextType | null>(null);
 const empToRow = (e: Employee) => ({
   id: e.id, name: e.name, fixed_salary: e.fixedSalary, date_of_joining: e.dateOfJoining,
   department: e.department, designation: e.designation, phone: e.phone, status: e.status,
+  hra: e.hra ?? 0, special_allowance: e.specialAllowance ?? 0,
+  medical_allowance: e.medicalAllowance ?? 0, travel_allowance: e.travelAllowance ?? 0,
+  other_earnings: e.otherEarnings ?? 0,
+  pf: e.pf ?? 0, esi: e.esi ?? 0, professional_tax: e.professionalTax ?? 0,
+  loan_recovery: e.loanRecovery ?? 0, other_deductions: e.otherDeductions ?? 0,
 });
 const empFromRow = (r: any): Employee => ({
   id: r.id, name: r.name, fixedSalary: Number(r.fixed_salary), dateOfJoining: r.date_of_joining || '',
   department: r.department || '', designation: r.designation || '', phone: r.phone || '',
   status: (r.status as 'Active' | 'Inactive') || 'Active',
+  hra: Number(r.hra ?? 0),
+  specialAllowance: Number(r.special_allowance ?? 0),
+  medicalAllowance: Number(r.medical_allowance ?? 0),
+  travelAllowance: Number(r.travel_allowance ?? 0),
+  otherEarnings: Number(r.other_earnings ?? 0),
+  pf: Number(r.pf ?? 0),
+  esi: Number(r.esi ?? 0),
+  professionalTax: Number(r.professional_tax ?? 0),
+  loanRecovery: Number(r.loan_recovery ?? 0),
+  otherDeductions: Number(r.other_deductions ?? 0),
 });
 const advToRow = (a: Advance) => ({
   id: a.id, employee_id: a.employeeId, employee_name: a.employeeName, advance_date: a.advanceDate,

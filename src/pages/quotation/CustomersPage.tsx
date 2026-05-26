@@ -12,7 +12,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Users, Plus, Pencil, Trash2, Search } from 'lucide-react';
 
 const empty: Customer = {
-  id: '', name: '', address: '', gstNumber: '', contactPerson: '', phone: '', email: '', status: 'Active',
+  id: '', name: '', address: '', gstNumber: '', contactPerson: '', phone: '', email: '',
+  status: 'Active', numberPrefix: '',
 };
 
 export default function CustomersPage() {
@@ -81,8 +82,8 @@ export default function CustomersPage() {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead>ID</TableHead><TableHead>Name</TableHead><TableHead>GST</TableHead>
-              <TableHead>Contact</TableHead><TableHead>Phone</TableHead>
+              <TableHead>ID</TableHead><TableHead>Name</TableHead><TableHead>Prefix</TableHead>
+              <TableHead>GST</TableHead><TableHead>Contact</TableHead><TableHead>Phone</TableHead>
               <TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -91,6 +92,7 @@ export default function CustomersPage() {
               <TableRow key={c.id}>
                 <TableCell className="font-medium text-primary text-sm">{c.id}</TableCell>
                 <TableCell className="font-medium">{c.name}</TableCell>
+                <TableCell className="font-mono text-xs">{c.numberPrefix || '—'}</TableCell>
                 <TableCell>{c.gstNumber || '—'}</TableCell>
                 <TableCell>{c.contactPerson || '—'}</TableCell>
                 <TableCell>{c.phone || '—'}</TableCell>
@@ -107,7 +109,7 @@ export default function CustomersPage() {
               </TableRow>
             ))}
             {filtered.length === 0 && (
-              <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+              <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                 No customers found. Click <strong>Add Customer</strong> to create one.
               </TableCell></TableRow>
             )}
@@ -126,6 +128,13 @@ export default function CustomersPage() {
             <div>
               <label className="text-sm font-medium block mb-1">Address</label>
               <Textarea rows={3} value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} placeholder="Full address" />
+            </div>
+            <div>
+              <label className="text-sm font-medium block mb-1">Quotation Number Prefix</label>
+              <Input value={form.numberPrefix}
+                onChange={e => setForm(f => ({ ...f, numberPrefix: e.target.value }))}
+                placeholder="e.g. VS/NEW" />
+              <p className="text-xs text-muted-foreground mt-1">Used when generating quotation numbers for this customer.</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
