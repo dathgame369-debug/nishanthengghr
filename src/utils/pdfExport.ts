@@ -4,6 +4,7 @@ import { PayrollEntry, Employee, Advance } from '@/types/hr';
 import { logoBase64 } from '@/assets/logoBase64';
 import { buildPayslipBreakdown } from '@/utils/payslipBreakdown';
 import { numberToIndianWords } from '@/utils/numberToWords';
+import { getCompanyInfo } from '@/utils/companySettings';
 
 // Helvetica (jsPDF default) doesn't support the ₹ glyph — use "Rs." prefix.
 function money(n: number): string {
@@ -74,6 +75,8 @@ export function generateBulkPayslipPDF(entries: PayrollEntry[], employees: Emplo
 
 function renderPayslipMini(doc: jsPDF, entry: PayrollEntry, emp: Employee | undefined, x: number, y: number, w: number, h: number, adv?: Advance) {
   const { earnings, deductions, grossSalary, totalDeductions, netSalary } = buildPayslipBreakdown(entry, adv);
+  const company = getCompanyInfo();
+  const logo = company.logoDataUrl || logoBase64;
 
   doc.setDrawColor(60);
   doc.setLineWidth(0.3);
@@ -85,11 +88,12 @@ function renderPayslipMini(doc: jsPDF, entry: PayrollEntry, emp: Employee | unde
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
-  doc.text('NISHANTH ENGINEERING WORKS', x + w / 2, y + 5, { align: 'center' });
-  try { doc.addImage(logoBase64, 'PNG', x + 1.5, y + 2, 10, 10); } catch {}
+  doc.text((company.name || '').toUpperCase(), x + w / 2, y + 5, { align: 'center' });
+  try { doc.addImage(logo, 'PNG', x + 1.5, y + 2, 10, 10); } catch {}
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(5.5);
-  doc.text('Chinnavedampatti, Coimbatore, TN 641049', x + w / 2, y + 8.5, { align: 'center' });
+  const addrShort = (company.address || '').split('\n')[0].slice(0, 80);
+  doc.text(addrShort, x + w / 2, y + 8.5, { align: 'center' });
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7);
   doc.text(`PAYSLIP — ${entry.month.toUpperCase()} ${entry.year || ''}`, x + w / 2, y + 12, { align: 'center' });
@@ -226,6 +230,8 @@ function renderPayslip(doc: jsPDF, entry: PayrollEntry, emp: Employee | undefine
 
   const { earnings, deductions, grossSalary, totalDeductions, netSalary } =
     buildPayslipBreakdown(entry, adv);
+  const company = getCompanyInfo();
+  const logo = company.logoDataUrl || logoBase64;
 
   const totalH = compact ? 150 : 220;
   doc.setDrawColor(60);
@@ -240,15 +246,12 @@ function renderPayslip(doc: jsPDF, entry: PayrollEntry, emp: Employee | undefine
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(compact ? 12 : 15);
-  doc.text('NISHANTH ENGINEERING WORKS', x + w / 2, y + (compact ? 7 : 8.5), { align: 'center' });
-  try { doc.addImage(logoBase64, 'PNG', x + 3, y + 3, compact ? 12 : 16, compact ? 12 : 16); } catch {}
+  doc.text((company.name || '').toUpperCase(), x + w / 2, y + (compact ? 7 : 8.5), { align: 'center' });
+  try { doc.addImage(logo, 'PNG', x + 3, y + 3, compact ? 12 : 16, compact ? 12 : 16); } catch {}
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(compact ? 6.5 : 7.5);
-  doc.text(
-    '102/1, Subbanaickenpalayam School Street, Chinnavedampatti, Coimbatore, TN 641049',
-    x + w / 2, y + (compact ? 12 : 14), { align: 'center' }
-  );
+  doc.text(company.address || '', x + w / 2, y + (compact ? 12 : 14), { align: 'center', maxWidth: w - 10 });
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(compact ? 8 : 9);
