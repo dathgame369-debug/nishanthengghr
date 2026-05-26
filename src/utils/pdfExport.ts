@@ -286,12 +286,6 @@ function renderPayslip(doc: jsPDF, entry: PayrollEntry, emp: Employee | undefine
   iy += lh;
   drawPair(colA, 'Date of Join', emp?.dateOfJoining || '-');
   drawPair(colB, 'Pay Date', entry.date);
-  iy += lh;
-  drawPair(colA, 'Bank A/C', e.bankAccount || '-');
-  drawPair(colB, 'IFSC', e.ifsc || '-');
-  iy += lh;
-  drawPair(colA, 'PF / UAN', e.uan || '-');
-  drawPair(colB, 'ESI', e.esiNumber || '-');
 
   y += infoH;
   doc.setDrawColor(200);
