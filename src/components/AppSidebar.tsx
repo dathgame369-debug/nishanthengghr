@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import { useHR } from '@/context/HRContext';
 import {
-  LayoutDashboard, UserPlus, Users, CalendarDays,
+  LayoutDashboard, Users, CalendarDays,
   Wallet, FileText, LogOut, Settings, X,
   Briefcase, FileSpreadsheet, Building2, ChevronDown, ChevronRight,
 } from 'lucide-react';
