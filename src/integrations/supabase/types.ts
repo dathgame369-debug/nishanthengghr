@@ -71,6 +71,7 @@ export type Database = {
           gst_number: string
           id: string
           name: string
+          number_prefix: string
           phone: string
           status: string
         }
@@ -82,6 +83,7 @@ export type Database = {
           gst_number?: string
           id: string
           name: string
+          number_prefix?: string
           phone?: string
           status?: string
         }
@@ -93,6 +95,7 @@ export type Database = {
           gst_number?: string
           id?: string
           name?: string
+          number_prefix?: string
           phone?: string
           status?: string
         }
@@ -125,33 +128,63 @@ export type Database = {
           date_of_joining: string
           department: string
           designation: string
+          esi: number
           fixed_salary: number
+          hra: number
           id: string
+          loan_recovery: number
+          medical_allowance: number
           name: string
+          other_deductions: number
+          other_earnings: number
+          pf: number
           phone: string
+          professional_tax: number
+          special_allowance: number
           status: string
+          travel_allowance: number
         }
         Insert: {
           created_at?: string
           date_of_joining?: string
           department?: string
           designation?: string
+          esi?: number
           fixed_salary?: number
+          hra?: number
           id: string
+          loan_recovery?: number
+          medical_allowance?: number
           name: string
+          other_deductions?: number
+          other_earnings?: number
+          pf?: number
           phone?: string
+          professional_tax?: number
+          special_allowance?: number
           status?: string
+          travel_allowance?: number
         }
         Update: {
           created_at?: string
           date_of_joining?: string
           department?: string
           designation?: string
+          esi?: number
           fixed_salary?: number
+          hra?: number
           id?: string
+          loan_recovery?: number
+          medical_allowance?: number
           name?: string
+          other_deductions?: number
+          other_earnings?: number
+          pf?: number
           phone?: string
+          professional_tax?: number
+          special_allowance?: number
           status?: string
+          travel_allowance?: number
         }
         Relationships: []
       }
