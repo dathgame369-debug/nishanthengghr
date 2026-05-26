@@ -102,14 +102,10 @@ export function generateQuotationPDF(q: Quotation, items: QuotationItem[]) {
 
   // ---- Items table ----
   const body = items.map(it => {
-    const hasSecond = (it.qty2 && it.qty2.trim()) || (it.rate2 && it.rate2 > 0);
-    const qtyCell = hasSecond ? `${it.qty}\n${it.qty2 || ''}` : it.qty;
-    const rateCell = hasSecond
-      ? `${it.rate ? money(it.rate) : ''}\n${it.rate2 ? money(it.rate2) : ''}`
-      : (it.rate ? money(it.rate) : '');
-    const amtCell = hasSecond
-      ? `${it.amount ? money(it.amount) : ''}\n${it.amount2 ? money(it.amount2) : ''}`
-      : (it.amount ? money(it.amount) : '');
+    const subs = it.subLines || [];
+    const qtyCell = [it.qty, ...subs.map(s => s.qty || '')].join('\n');
+    const rateCell = [it.rate ? money(it.rate) : '', ...subs.map(s => s.rate ? money(s.rate) : '')].join('\n');
+    const amtCell = [it.amount ? money(it.amount) : '', ...subs.map(s => s.amount ? money(s.amount) : '')].join('\n');
     return [String(it.slNo), it.description, qtyCell, rateCell, amtCell];
   });
 
