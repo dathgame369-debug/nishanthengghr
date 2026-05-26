@@ -62,6 +62,42 @@ export type Database = {
         }
         Relationships: []
       }
+      customers: {
+        Row: {
+          address: string
+          contact_person: string
+          created_at: string
+          email: string
+          gst_number: string
+          id: string
+          name: string
+          phone: string
+          status: string
+        }
+        Insert: {
+          address?: string
+          contact_person?: string
+          created_at?: string
+          email?: string
+          gst_number?: string
+          id: string
+          name: string
+          phone?: string
+          status?: string
+        }
+        Update: {
+          address?: string
+          contact_person?: string
+          created_at?: string
+          email?: string
+          gst_number?: string
+          id?: string
+          name?: string
+          phone?: string
+          status?: string
+        }
+        Relationships: []
+      }
       departments: {
         Row: {
           created_at: string
@@ -179,6 +215,132 @@ export type Database = {
           present_days?: number
           welfare_amount?: number
           year?: number
+        }
+        Relationships: []
+      }
+      quotation_items: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string
+          id: string
+          qty: string
+          quotation_id: string
+          rate: number
+          sl_no: number
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          description?: string
+          id: string
+          qty?: string
+          quotation_id: string
+          rate?: number
+          sl_no?: number
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string
+          id?: string
+          qty?: string
+          quotation_id?: string
+          rate?: number
+          sl_no?: number
+        }
+        Relationships: []
+      }
+      quotation_settings: {
+        Row: {
+          created_at: string
+          default_tax_percent: number
+          default_terms: string
+          id: string
+          next_sequence: number
+          number_prefix: string
+        }
+        Insert: {
+          created_at?: string
+          default_tax_percent?: number
+          default_terms?: string
+          id: string
+          next_sequence?: number
+          number_prefix?: string
+        }
+        Update: {
+          created_at?: string
+          default_tax_percent?: number
+          default_terms?: string
+          id?: string
+          next_sequence?: number
+          number_prefix?: string
+        }
+        Relationships: []
+      }
+      quotations: {
+        Row: {
+          created_at: string
+          customer_address: string
+          customer_gst: string
+          customer_id: string
+          customer_name: string
+          due_on: string
+          financial_year: string
+          id: string
+          notes: string
+          quotation_date: string
+          quotation_number: string
+          status: string
+          subtotal: number
+          tax_amount: number
+          tax_percent: number
+          terms: string
+          total: number
+          your_ref: string
+          your_ref_date: string
+        }
+        Insert: {
+          created_at?: string
+          customer_address?: string
+          customer_gst?: string
+          customer_id?: string
+          customer_name?: string
+          due_on?: string
+          financial_year?: string
+          id: string
+          notes?: string
+          quotation_date?: string
+          quotation_number: string
+          status?: string
+          subtotal?: number
+          tax_amount?: number
+          tax_percent?: number
+          terms?: string
+          total?: number
+          your_ref?: string
+          your_ref_date?: string
+        }
+        Update: {
+          created_at?: string
+          customer_address?: string
+          customer_gst?: string
+          customer_id?: string
+          customer_name?: string
+          due_on?: string
+          financial_year?: string
+          id?: string
+          notes?: string
+          quotation_date?: string
+          quotation_number?: string
+          status?: string
+          subtotal?: number
+          tax_amount?: number
+          tax_percent?: number
+          terms?: string
+          total?: number
+          your_ref?: string
+          your_ref_date?: string
         }
         Relationships: []
       }
