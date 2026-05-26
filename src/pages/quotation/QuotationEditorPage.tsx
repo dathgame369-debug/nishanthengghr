@@ -21,7 +21,7 @@ const todayStr = () => {
 };
 
 function newItem(slNo: number, quotationId: string): QuotationItem {
-  return { id: crypto.randomUUID(), quotationId, slNo, description: '', qty: '', rate: 0, amount: 0 };
+  return { id: crypto.randomUUID(), quotationId, slNo, description: '', qty: '', rate: 0, amount: 0, qty2: '', rate2: 0, amount2: 0 };
 }
 
 export default function QuotationEditorPage() {
@@ -69,10 +69,12 @@ export default function QuotationEditorPage() {
   const computed = useMemo(() => {
     const enriched = lineItems.map(it => {
       const qtyNum = parseFloat((it.qty || '').replace(/[^0-9.]/g, '')) || 0;
-      const amt = it.rate && qtyNum ? qtyNum * it.rate : it.amount;
-      return { ...it, amount: it.rate && qtyNum ? qtyNum * it.rate : it.amount };
+      const qty2Num = parseFloat((it.qty2 || '').replace(/[^0-9.]/g, '')) || 0;
+      const amount = it.rate && qtyNum ? qtyNum * it.rate : it.amount;
+      const amount2 = it.rate2 && qty2Num ? qty2Num * (it.rate2 || 0) : (it.amount2 || 0);
+      return { ...it, amount, amount2 };
     });
-    const subtotal = enriched.reduce((s, it) => s + (it.amount || 0), 0);
+    const subtotal = enriched.reduce((s, it) => s + (it.amount || 0) + (it.amount2 || 0), 0);
     const taxAmount = (subtotal * (form.taxPercent || 0)) / 100;
     return { enriched, subtotal, taxAmount, total: subtotal + taxAmount };
   }, [lineItems, form.taxPercent]);
@@ -234,9 +236,9 @@ export default function QuotationEditorPage() {
               <tr>
                 <th className="px-2 py-2 w-12 text-center">Sl</th>
                 <th className="px-2 py-2 text-left">Description</th>
-                <th className="px-2 py-2 w-24">Qty</th>
-                <th className="px-2 py-2 w-32 text-right">Rate</th>
-                <th className="px-2 py-2 w-32 text-right">Amount</th>
+                <th className="px-2 py-2 w-28">Qty</th>
+                <th className="px-2 py-2 w-28 text-right">Rate</th>
+                <th className="px-2 py-2 w-28 text-right">Amount</th>
                 <th className="px-2 py-2 w-12"></th>
               </tr>
             </thead>
@@ -249,16 +251,23 @@ export default function QuotationEditorPage() {
                       onChange={e => setItem(idx, { description: e.target.value })}
                       placeholder="Item description (multiline supported)" className="min-h-[44px]" />
                   </td>
-                  <td className="px-2 py-1">
+                  <td className="px-2 py-1 space-y-1">
                     <Input value={it.qty} onChange={e => setItem(idx, { qty: e.target.value })} placeholder="1 set" />
+                    <Input value={it.qty2 || ''} onChange={e => setItem(idx, { qty2: e.target.value })} placeholder="Qty 2 (optional)" />
                   </td>
-                  <td className="px-2 py-1">
+                  <td className="px-2 py-1 space-y-1">
                     <Input type="number" step="0.01" value={it.rate || ''}
                       onChange={e => setItem(idx, { rate: parseFloat(e.target.value) || 0 })}
                       className="text-right" />
+                    <Input type="number" step="0.01" value={it.rate2 || ''}
+                      onChange={e => setItem(idx, { rate2: parseFloat(e.target.value) || 0 })}
+                      className="text-right" placeholder="Rate 2" />
                   </td>
                   <td className="px-2 py-1 text-right font-mono">
-                    {(it.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    <div>{(it.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                    {(it.qty2 || it.rate2) ? (
+                      <div>{(it.amount2 || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                    ) : null}
                   </td>
                   <td className="px-2 py-1 text-center">
                     <Button variant="ghost" size="icon" onClick={() => removeRow(idx)} className="text-destructive">
