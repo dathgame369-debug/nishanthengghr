@@ -206,7 +206,38 @@ export default function QuotationEditorPage() {
           <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Quotation Info</h3>
           <div>
             <label className="text-xs font-medium block mb-1">Quotation Number</label>
-            <Input value={form.quotationNumber} onChange={e => setForm(f => ({ ...f, quotationNumber: e.target.value }))} />
+            {(() => {
+              const fallback = customers.find(c => c.id === form.customerId)?.numberPrefix || settings.numberPrefix;
+              const parts = splitQuotationNumber(form.quotationNumber, fallback);
+              const update = (seq: string, fy: string) => {
+                setForm(f => ({
+                  ...f,
+                  financialYear: fy,
+                  quotationNumber: `${parts.prefix}/${seq}/${fy}`,
+                }));
+              };
+              return (
+                <div className="flex items-center gap-1">
+                  <div className="px-2 py-2 rounded-md bg-muted text-sm font-mono text-muted-foreground border border-border whitespace-nowrap">
+                    {parts.prefix}
+                  </div>
+                  <span className="text-muted-foreground">/</span>
+                  <Input
+                    value={parts.seq}
+                    onChange={e => update(e.target.value.replace(/[^0-9]/g, ''), parts.fy)}
+                    className="w-16 text-center font-mono"
+                    placeholder="3"
+                  />
+                  <span className="text-muted-foreground">/</span>
+                  <Input
+                    value={parts.fy}
+                    onChange={e => update(parts.seq, e.target.value)}
+                    className="w-20 text-center font-mono"
+                    placeholder="26-27"
+                  />
+                </div>
+              );
+            })()}
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
@@ -290,25 +321,44 @@ export default function QuotationEditorPage() {
                       onChange={e => setItem(idx, { description: e.target.value })}
                       placeholder="Item description (multiline supported)" className="min-h-[44px]" />
                   </td>
-                  <td className="px-2 py-1 space-y-1">
+                  <td className="px-2 py-1 space-y-1 align-top">
                     <Input value={it.qty} onChange={e => setItem(idx, { qty: e.target.value })} placeholder="1 set" />
-                    <Input value={it.qty2 || ''} onChange={e => setItem(idx, { qty2: e.target.value })} placeholder="Qty 2 (optional)" />
+                    {(it.subLines || []).map((s, sIdx) => (
+                      <Input key={sIdx} value={s.qty}
+                        onChange={e => setSub(idx, sIdx, { qty: e.target.value })}
+                        placeholder={`Qty ${sIdx + 2}`} />
+                    ))}
+                    <Button type="button" size="sm" variant="ghost"
+                      className="h-7 px-2 text-xs text-primary"
+                      onClick={() => addSub(idx)}>
+                      <Plus className="w-3 h-3 mr-1" /> Add Qty
+                    </Button>
                   </td>
-                  <td className="px-2 py-1 space-y-1">
+                  <td className="px-2 py-1 space-y-1 align-top">
                     <Input type="number" step="0.01" value={it.rate || ''}
                       onChange={e => setItem(idx, { rate: parseFloat(e.target.value) || 0 })}
                       className="text-right" />
-                    <Input type="number" step="0.01" value={it.rate2 || ''}
-                      onChange={e => setItem(idx, { rate2: parseFloat(e.target.value) || 0 })}
-                      className="text-right" placeholder="Rate 2" />
+                    {(it.subLines || []).map((s, sIdx) => (
+                      <Input key={sIdx} type="number" step="0.01" value={s.rate || ''}
+                        onChange={e => setSub(idx, sIdx, { rate: parseFloat(e.target.value) || 0 })}
+                        className="text-right" placeholder={`Rate ${sIdx + 2}`} />
+                    ))}
                   </td>
-                  <td className="px-2 py-1 text-right font-mono">
-                    <div>{(it.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                    {(it.qty2 || it.rate2) ? (
-                      <div>{(it.amount2 || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                    ) : null}
+                  <td className="px-2 py-1 text-right font-mono align-top">
+                    <div className="h-10 flex items-center justify-end">
+                      {(it.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    {(it.subLines || []).map((s, sIdx) => (
+                      <div key={sIdx} className="h-10 flex items-center justify-end gap-1">
+                        <span>{(s.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive"
+                          onClick={() => removeSub(idx, sIdx)}>
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
                   </td>
-                  <td className="px-2 py-1 text-center">
+                  <td className="px-2 py-1 text-center align-top">
                     <Button variant="ghost" size="icon" onClick={() => removeRow(idx)} className="text-destructive">
                       <Trash2 className="w-4 h-4" />
                     </Button>
