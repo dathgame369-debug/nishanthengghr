@@ -25,10 +25,12 @@ const customerFromRow = (r: any): Customer => ({
   id: r.id, name: r.name, address: r.address || '', gstNumber: r.gst_number || '',
   contactPerson: r.contact_person || '', phone: r.phone || '', email: r.email || '',
   status: (r.status as 'Active' | 'Inactive') || 'Active',
+  numberPrefix: r.number_prefix || '',
 });
 const customerToRow = (c: Customer) => ({
   id: c.id, name: c.name, address: c.address, gst_number: c.gstNumber,
   contact_person: c.contactPerson, phone: c.phone, email: c.email, status: c.status,
+  number_prefix: c.numberPrefix || '',
 });
 
 const quotationFromRow = (r: any): Quotation => ({
