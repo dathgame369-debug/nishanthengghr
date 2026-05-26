@@ -18,6 +18,9 @@ export interface QuotationItem {
   qty: string;
   rate: number;
   amount: number;
+  qty2?: string;
+  rate2?: number;
+  amount2?: number;
 }
 
 export type QuotationStatus = 'Draft' | 'Sent' | 'Accepted' | 'Rejected' | 'Expired';

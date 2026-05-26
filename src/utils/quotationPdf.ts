@@ -101,13 +101,17 @@ export function generateQuotationPDF(q: Quotation, items: QuotationItem[]) {
   y += metaH + 4;
 
   // ---- Items table ----
-  const body = items.map(it => [
-    String(it.slNo),
-    it.description,
-    it.qty,
-    it.rate ? money(it.rate) : '',
-    it.amount ? money(it.amount) : '',
-  ]);
+  const body = items.map(it => {
+    const hasSecond = (it.qty2 && it.qty2.trim()) || (it.rate2 && it.rate2 > 0);
+    const qtyCell = hasSecond ? `${it.qty}\n${it.qty2 || ''}` : it.qty;
+    const rateCell = hasSecond
+      ? `${it.rate ? money(it.rate) : ''}\n${it.rate2 ? money(it.rate2) : ''}`
+      : (it.rate ? money(it.rate) : '');
+    const amtCell = hasSecond
+      ? `${it.amount ? money(it.amount) : ''}\n${it.amount2 ? money(it.amount2) : ''}`
+      : (it.amount ? money(it.amount) : '');
+    return [String(it.slNo), it.description, qtyCell, rateCell, amtCell];
+  });
 
   autoTable(doc, {
     startY: y,

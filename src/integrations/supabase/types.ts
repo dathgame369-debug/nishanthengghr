@@ -254,32 +254,41 @@ export type Database = {
       quotation_items: {
         Row: {
           amount: number
+          amount2: number
           created_at: string
           description: string
           id: string
           qty: string
+          qty2: string
           quotation_id: string
           rate: number
+          rate2: number
           sl_no: number
         }
         Insert: {
           amount?: number
+          amount2?: number
           created_at?: string
           description?: string
           id: string
           qty?: string
+          qty2?: string
           quotation_id: string
           rate?: number
+          rate2?: number
           sl_no?: number
         }
         Update: {
           amount?: number
+          amount2?: number
           created_at?: string
           description?: string
           id?: string
           qty?: string
+          qty2?: string
           quotation_id?: string
           rate?: number
+          rate2?: number
           sl_no?: number
         }
         Relationships: []
