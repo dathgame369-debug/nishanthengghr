@@ -88,9 +88,14 @@ export default function QuotationEditorPage() {
   const pickCustomer = (cid: string) => {
     const c = customers.find(x => x.id === cid);
     if (!c) return;
+    const prefix = c.numberPrefix || settings.numberPrefix;
+    const fy = form.financialYear || getFinancialYear();
     setForm(f => ({
       ...f, customerId: c.id, customerName: c.name,
       customerAddress: c.address, customerGst: c.gstNumber,
+      quotationNumber: isNew
+        ? buildQuotationNumber(prefix, settings.nextSequence, fy)
+        : f.quotationNumber,
     }));
   };
 
