@@ -4,23 +4,23 @@ import { useHR } from '@/context/HRContext';
 import {
   LayoutDashboard, Users, CalendarDays,
   Wallet, FileText, LogOut, Settings, X,
-  Briefcase, FileSpreadsheet, Building2, ChevronDown, ChevronRight,
+  Briefcase, FileSpreadsheet, Building2, ChevronDown, ChevronRight, Settings2,
 } from 'lucide-react';
 import logo from '@/assets/logo.png';
 
 type NavItem = { path: string; label: string; icon: any };
 type NavGroup = { key: string; label: string; icon: any; items: NavItem[] };
 
-const dashboardItem: NavItem = { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard };
-
 const groups: NavGroup[] = [
   {
     key: 'hr', label: 'HR Management', icon: Briefcase,
     items: [
+      { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { path: '/employees', label: 'Employee List', icon: Users },
       { path: '/payroll', label: 'Monthly Payroll', icon: CalendarDays },
       { path: '/advances', label: 'Advance Mgmt', icon: Wallet },
       { path: '/payslip', label: 'Payslip Generator', icon: FileText },
+      { path: '/settings', label: 'HR Settings', icon: Settings },
     ],
   },
   {
@@ -35,7 +35,7 @@ const groups: NavGroup[] = [
   },
 ];
 
-const settingsItem: NavItem = { path: '/settings', label: 'Settings', icon: Settings };
+const companySettingsItem: NavItem = { path: '/company-settings', label: 'Company Settings', icon: Settings2 };
 
 interface AppSidebarProps {
   mobileOpen?: boolean;
@@ -112,8 +112,6 @@ export default function AppSidebar({ mobileOpen = false, onClose }: AppSidebarPr
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto">
-        {itemBtn(dashboardItem)}
-
         {groups.map(g => {
           const open = openGroups[g.key];
           return (
@@ -134,11 +132,10 @@ export default function AppSidebar({ mobileOpen = false, onClose }: AppSidebarPr
             </div>
           );
         })}
-
-        <div className="pt-2">{itemBtn(settingsItem)}</div>
       </nav>
 
       <div className="px-3 py-4 border-t border-sidebar-border">
+        <div className="mb-2">{itemBtn(companySettingsItem)}</div>
         <button onClick={async () => { await logout(); navigate('/'); onClose?.(); }}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-destructive/20 hover:text-destructive transition-all">
           <LogOut className="w-4.5 h-4.5" />
