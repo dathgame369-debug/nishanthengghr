@@ -10,6 +10,12 @@ export interface Customer {
   numberPrefix: string;
 }
 
+export interface QuotationSubLine {
+  qty: string;
+  rate: number;
+  amount: number;
+}
+
 export interface QuotationItem {
   id: string;
   quotationId: string;
@@ -21,6 +27,7 @@ export interface QuotationItem {
   qty2?: string;
   rate2?: number;
   amount2?: number;
+  subLines?: QuotationSubLine[];
 }
 
 export type QuotationStatus = 'Draft' | 'Sent' | 'Accepted' | 'Rejected' | 'Expired';
