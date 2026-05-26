@@ -258,7 +258,7 @@ function renderPayslip(doc: jsPDF, entry: PayrollEntry, emp: Employee | undefine
   y += headerH;
 
   // Employee info — 5 rows
-  const infoH = compact ? 28 : 36;
+  const infoH = compact ? 18 : 22;
   const fs = compact ? 8 : 9;
   const lh = compact ? 5 : 6;
   const colA = x + 4;
