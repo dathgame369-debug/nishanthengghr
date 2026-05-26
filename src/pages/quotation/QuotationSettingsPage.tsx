@@ -38,18 +38,6 @@ export default function QuotationSettingsPage() {
       <div className="bg-card rounded-xl card-shadow border border-border p-6 space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-sm font-medium block mb-1">Default Number Prefix</label>
-            <Input value={form.numberPrefix} onChange={e => setForm(f => ({ ...f, numberPrefix: e.target.value }))} />
-            <p className="text-xs text-muted-foreground mt-1">
-              Fallback only — each customer has its own prefix on the <strong>Customers</strong> page.
-            </p>
-          </div>
-          <div>
-            <label className="text-sm font-medium block mb-1">Next Sequence Number</label>
-            <Input type="number" value={form.nextSequence}
-              onChange={e => setForm(f => ({ ...f, nextSequence: parseInt(e.target.value) || 1 }))} />
-          </div>
-          <div>
             <label className="text-sm font-medium block mb-1">Default Tax %</label>
             <Input type="number" step="0.01" value={form.defaultTaxPercent}
               onChange={e => setForm(f => ({ ...f, defaultTaxPercent: parseFloat(e.target.value) || 0 }))} />

@@ -264,6 +264,7 @@ export type Database = {
           rate: number
           rate2: number
           sl_no: number
+          sub_lines: Json
         }
         Insert: {
           amount?: number
@@ -277,6 +278,7 @@ export type Database = {
           rate?: number
           rate2?: number
           sl_no?: number
+          sub_lines?: Json
         }
         Update: {
           amount?: number
@@ -290,6 +292,7 @@ export type Database = {
           rate?: number
           rate2?: number
           sl_no?: number
+          sub_lines?: Json
         }
         Relationships: []
       }
