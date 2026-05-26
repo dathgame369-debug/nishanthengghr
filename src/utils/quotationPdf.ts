@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { logoBase64 } from '@/assets/logoBase64';
 import { Quotation, QuotationItem } from '@/types/quotation';
+import { getCompanyInfo } from '@/utils/companySettings';
 
 function money(n: number): string {
   return (n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -12,22 +13,24 @@ export function generateQuotationPDF(q: Quotation, items: QuotationItem[]) {
   const pageW = 210;
   const margin = 12;
   const innerW = pageW - margin * 2;
+  const company = getCompanyInfo();
+  const logo = company.logoDataUrl || logoBase64;
 
   // ---- Header band ----
   let y = margin;
-  try { doc.addImage(logoBase64, 'PNG', margin, y, 18, 18); } catch {}
+  try { doc.addImage(logo, 'PNG', margin, y, 18, 18); } catch {}
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
   doc.setTextColor(20, 40, 80);
-  doc.text('Nishanth Engineering Works', pageW / 2, y + 6, { align: 'center' });
+  doc.text(company.name || '', pageW / 2, y + 6, { align: 'center' });
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(60);
-  doc.text('SF. No. 15, Ganesh Gounder Thottam, Annaiappa Gounder Street', pageW / 2, y + 11, { align: 'center' });
-  doc.text('Nallampalayam, Ganapathy Post, Coimbatore - 641 006.', pageW / 2, y + 15, { align: 'center' });
-  doc.text('Phone : 0422-2532130   Mobile : 94426 32130', pageW / 2, y + 19, { align: 'center' });
+  const addrLines2 = (company.address || '').split('\n').slice(0, 2);
+  addrLines2.forEach((ln, i) => doc.text(ln, pageW / 2, y + 11 + i * 4, { align: 'center' }));
+  if (company.phone) doc.text(company.phone, pageW / 2, y + 11 + addrLines2.length * 4, { align: 'center' });
 
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(7.5);
@@ -125,36 +128,7 @@ export function generateQuotationPDF(q: Quotation, items: QuotationItem[]) {
 
   let tableEnd = (doc as any).lastAutoTable.finalY;
 
-  // Totals
-  const totalBoxW = 70;
-  const totalBoxX = pageW - margin - totalBoxW;
-  const drawTotal = (label: string, value: string, row: number, bold = false) => {
-    const rH = 7;
-    const ry = tableEnd + row * rH;
-    doc.setDrawColor(160);
-    doc.rect(totalBoxX, ry, totalBoxW, rH);
-    doc.line(totalBoxX + totalBoxW * 0.55, ry, totalBoxX + totalBoxW * 0.55, ry + rH);
-    doc.setFont('helvetica', bold ? 'bold' : 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(0);
-    doc.text(label, totalBoxX + 2, ry + 4.6);
-    doc.text(value, totalBoxX + totalBoxW - 2, ry + 4.6, { align: 'right' });
-  };
-
-  let row = 0;
-  drawTotal('Subtotal', money(q.subtotal), row++);
-  if (q.taxPercent > 0) drawTotal(`Tax (${q.taxPercent}%)`, money(q.taxAmount), row++);
-  doc.setFillColor(20, 40, 80);
-  const grandRy = tableEnd + row * 7;
-  doc.rect(totalBoxX, grandRy, totalBoxW, 8, 'F');
-  doc.setTextColor(255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.text('Grand Total', totalBoxX + 2, grandRy + 5.3);
-  doc.text(money(q.total), totalBoxX + totalBoxW - 2, grandRy + 5.3, { align: 'right' });
-  doc.setTextColor(0);
-
-  tableEnd = grandRy + 10;
+  tableEnd += 4;
 
   // Terms
   doc.setFont('helvetica', 'bold');
@@ -171,7 +145,7 @@ export function generateQuotationPDF(q: Quotation, items: QuotationItem[]) {
   doc.setFontSize(9);
   doc.text('For', pageW - margin - 60, sigY);
   doc.setFont('helvetica', 'bold');
-  doc.text('Nishanth Engineering Works', pageW - margin - 55, sigY);
+  doc.text(company.name || '', pageW - margin - 55, sigY);
   doc.setDrawColor(120);
   doc.line(pageW - margin - 60, sigY + 18, pageW - margin, sigY + 18);
   doc.setFont('helvetica', 'normal');
