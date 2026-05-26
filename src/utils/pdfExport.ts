@@ -74,7 +74,8 @@ export function generateBulkPayslipPDF(entries: PayrollEntry[], employees: Emplo
 }
 
 function renderPayslipMini(doc: jsPDF, entry: PayrollEntry, emp: Employee | undefined, x: number, y: number, w: number, h: number, adv?: Advance) {
-  const { earnings, deductions, grossSalary, totalDeductions, netSalary } = buildPayslipBreakdown(entry, adv);
+  const { earnings, deductions, grossSalary, totalDeductions, netSalary } = buildPayslipBreakdown(entry, adv, undefined, emp);
+  const remainingAdvance = adv ? Math.max(0, adv.advanceAmount - adv.totalDeducted) : 0;
   const company = getCompanyInfo();
   const logo = company.logoDataUrl || logoBase64;
 
@@ -166,6 +167,16 @@ function renderPayslipMini(doc: jsPDF, entry: PayrollEntry, emp: Employee | unde
   doc.text('NET SALARY', x + 5, ny + 5.2);
   doc.text(money(netSalary), x + w - 5, ny + 5.2, { align: 'right' });
   doc.setTextColor(0, 0, 0);
+  if (adv) {
+    const ry = ny + netH + 1;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6);
+    doc.setTextColor(120, 35, 35);
+    doc.text('Remaining Advance:', x + 5, ry + 2.5);
+    doc.setFont('helvetica', 'bold');
+    doc.text(money(remainingAdvance), x + w - 5, ry + 2.5, { align: 'right' });
+    doc.setTextColor(0, 0, 0);
+  }
 }
 
 // Excel export for payslips — includes attendance, all earnings/deductions, totals
@@ -229,7 +240,8 @@ function renderPayslip(doc: jsPDF, entry: PayrollEntry, emp: Employee | undefine
   let y = startY;
 
   const { earnings, deductions, grossSalary, totalDeductions, netSalary } =
-    buildPayslipBreakdown(entry, adv);
+    buildPayslipBreakdown(entry, adv, undefined, emp);
+  const remainingAdvance = adv ? Math.max(0, adv.advanceAmount - adv.totalDeducted) : 0;
   const company = getCompanyInfo();
   const logo = company.logoDataUrl || logoBase64;
 
@@ -346,6 +358,16 @@ function renderPayslip(doc: jsPDF, entry: PayrollEntry, emp: Employee | undefine
   doc.text(money(netSalary), x + w - 6, y + (compact ? 6.5 : 8), { align: 'right' });
   doc.setTextColor(0, 0, 0);
   y += netH + 3;
+
+  if (adv) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(compact ? 8.5 : 9.5);
+    doc.setTextColor(120, 35, 35);
+    doc.text('Remaining Advance:', x + 6, y + 2);
+    doc.text(money(remainingAdvance), x + w - 6, y + 2, { align: 'right' });
+    doc.setTextColor(0, 0, 0);
+    y += compact ? 5 : 6;
+  }
 
   // Amount in words
   doc.setFont('helvetica', 'italic');
