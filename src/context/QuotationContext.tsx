@@ -57,10 +57,12 @@ const itemFromRow = (r: any): QuotationItem => ({
   id: r.id, quotationId: r.quotation_id, slNo: Number(r.sl_no),
   description: r.description || '', qty: r.qty || '',
   rate: Number(r.rate), amount: Number(r.amount),
+  qty2: r.qty2 || '', rate2: Number(r.rate2 || 0), amount2: Number(r.amount2 || 0),
 });
 const itemToRow = (i: QuotationItem) => ({
   id: i.id, quotation_id: i.quotationId, sl_no: i.slNo,
   description: i.description, qty: i.qty, rate: i.rate, amount: i.amount,
+  qty2: i.qty2 || '', rate2: i.rate2 || 0, amount2: i.amount2 || 0,
 });
 
 const DEFAULT_SETTINGS: QuotationSettings = {
