@@ -44,10 +44,6 @@ export default function PayslipTemplate({ entry, compact = false }: PayslipProps
         <Info label="Designation" value={emp?.designation || '—'} />
         <Info label="Date of Joining" value={emp?.dateOfJoining || '—'} />
         <Info label="Pay Date" value={entry.date} />
-        <Info label="Bank A/C" value={(emp as any)?.bankAccount || '—'} />
-        <Info label="IFSC" value={(emp as any)?.ifsc || '—'} />
-        <Info label="PF / UAN" value={(emp as any)?.uan || '—'} />
-        <Info label="ESI" value={(emp as any)?.esiNumber || '—'} />
       </div>
 
       {/* Earnings / Deductions */}
