@@ -323,40 +323,16 @@ export default function QuotationEditorPage() {
                   </td>
                   <td className="px-2 py-1 space-y-1 align-top">
                     <Input value={it.qty} onChange={e => setItem(idx, { qty: e.target.value })} placeholder="1 set" />
-                    {(it.subLines || []).map((s, sIdx) => (
-                      <Input key={sIdx} value={s.qty}
-                        onChange={e => setSub(idx, sIdx, { qty: e.target.value })}
-                        placeholder={`Qty ${sIdx + 2}`} />
-                    ))}
-                    <Button type="button" size="sm" variant="ghost"
-                      className="h-7 px-2 text-xs text-primary"
-                      onClick={() => addSub(idx)}>
-                      <Plus className="w-3 h-3 mr-1" /> Add Qty
-                    </Button>
                   </td>
                   <td className="px-2 py-1 space-y-1 align-top">
                     <Input type="number" step="0.01" value={it.rate || ''}
                       onChange={e => setItem(idx, { rate: parseFloat(e.target.value) || 0 })}
                       className="text-right" />
-                    {(it.subLines || []).map((s, sIdx) => (
-                      <Input key={sIdx} type="number" step="0.01" value={s.rate || ''}
-                        onChange={e => setSub(idx, sIdx, { rate: parseFloat(e.target.value) || 0 })}
-                        className="text-right" placeholder={`Rate ${sIdx + 2}`} />
-                    ))}
                   </td>
                   <td className="px-2 py-1 text-right font-mono align-top">
                     <div className="h-10 flex items-center justify-end">
                       {(it.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
-                    {(it.subLines || []).map((s, sIdx) => (
-                      <div key={sIdx} className="h-10 flex items-center justify-end gap-1">
-                        <span>{(s.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive"
-                          onClick={() => removeSub(idx, sIdx)}>
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    ))}
                   </td>
                   <td className="px-2 py-1 text-center align-top">
                     <Button variant="ghost" size="icon" onClick={() => removeRow(idx)} className="text-destructive">
