@@ -172,9 +172,14 @@ function renderPayslipMini(doc: jsPDF, entry: PayrollEntry, emp: Employee | unde
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(6);
     doc.setTextColor(120, 35, 35);
-    doc.text('Remaining Advance:', x + 5, ry + 2.5);
+    const recovered = Math.max(0, (adv.advanceAmount || 0) - (adv.totalDeducted || 0));
+    doc.text('Adv Recovered:', x + 5, ry + 2.5);
     doc.setFont('helvetica', 'bold');
-    doc.text(money(remainingAdvance), x + w - 5, ry + 2.5, { align: 'right' });
+    doc.text(money(recovered), x + w - 5, ry + 2.5, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    doc.text('Remaining:', x + 5, ry + 5.5);
+    doc.setFont('helvetica', 'bold');
+    doc.text(money(adv.remainingBalance || 0), x + w - 5, ry + 5.5, { align: 'right' });
     doc.setTextColor(0, 0, 0);
   }
 }
