@@ -75,7 +75,8 @@ export function generateBulkPayslipPDF(entries: PayrollEntry[], employees: Emplo
 
 function renderPayslipMini(doc: jsPDF, entry: PayrollEntry, emp: Employee | undefined, x: number, y: number, w: number, h: number, adv?: Advance) {
   const { earnings, deductions, grossSalary, totalDeductions, netSalary } = buildPayslipBreakdown(entry, adv, undefined, emp);
-  const remainingAdvance = adv ? Math.max(0, adv.advanceAmount - adv.totalDeducted) : 0;
+  const advanceRecovered = adv ? Math.max(0, (adv.advanceAmount || 0) - (adv.totalDeducted || 0)) : 0;
+  const remainingAdvance = adv ? Math.max(0, adv.remainingBalance || 0) : 0;
   const company = getCompanyInfo();
   const logo = company.logoDataUrl || logoBase64;
 
@@ -145,6 +146,10 @@ function renderPayslipMini(doc: jsPDF, entry: PayrollEntry, emp: Employee | unde
     head: [['DEDUCTIONS', 'AMT']],
     body: [
       ...deductions.map(r => [r.label, money(r.amount)]),
+      ...(adv ? [
+        ['Advance Recovered', money(advanceRecovered)],
+        ['Remaining Advance', money(remainingAdvance)],
+      ] : []),
       [{ content: 'Total', styles: { fontStyle: 'bold', fillColor: [250, 240, 240] } },
        { content: money(totalDeductions), styles: { fontStyle: 'bold', halign: 'right', fillColor: [250, 240, 240] } }],
     ],
@@ -167,21 +172,6 @@ function renderPayslipMini(doc: jsPDF, entry: PayrollEntry, emp: Employee | unde
   doc.text('NET SALARY', x + 5, ny + 5.2);
   doc.text(money(netSalary), x + w - 5, ny + 5.2, { align: 'right' });
   doc.setTextColor(0, 0, 0);
-  if (adv) {
-    const ry = ny + netH + 1;
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6);
-    doc.setTextColor(120, 35, 35);
-    const recovered = Math.max(0, (adv.advanceAmount || 0) - (adv.totalDeducted || 0));
-    doc.text('Adv Recovered:', x + 5, ry + 2.5);
-    doc.setFont('helvetica', 'bold');
-    doc.text(money(recovered), x + w - 5, ry + 2.5, { align: 'right' });
-    doc.setFont('helvetica', 'normal');
-    doc.text('Remaining:', x + 5, ry + 5.5);
-    doc.setFont('helvetica', 'bold');
-    doc.text(money(adv.remainingBalance || 0), x + w - 5, ry + 5.5, { align: 'right' });
-    doc.setTextColor(0, 0, 0);
-  }
 }
 
 // Excel export for payslips — includes attendance, all earnings/deductions, totals
@@ -246,7 +236,8 @@ function renderPayslip(doc: jsPDF, entry: PayrollEntry, emp: Employee | undefine
 
   const { earnings, deductions, grossSalary, totalDeductions, netSalary } =
     buildPayslipBreakdown(entry, adv, undefined, emp);
-  const remainingAdvance = adv ? Math.max(0, adv.advanceAmount - adv.totalDeducted) : 0;
+  const advanceRecovered = adv ? Math.max(0, (adv.advanceAmount || 0) - (adv.totalDeducted || 0)) : 0;
+  const remainingAdvance = adv ? Math.max(0, adv.remainingBalance || 0) : 0;
   const company = getCompanyInfo();
   const logo = company.logoDataUrl || logoBase64;
 
@@ -338,6 +329,10 @@ function renderPayslip(doc: jsPDF, entry: PayrollEntry, emp: Employee | undefine
     head: [['DEDUCTIONS', 'AMOUNT']],
     body: [
       ...deductions.map(r => [r.label, money(r.amount)]),
+      ...(adv ? [
+        ['Advance Recovered', money(advanceRecovered)],
+        ['Remaining Advance', money(remainingAdvance)],
+      ] : []),
       [{ content: 'Total Deductions', styles: { fontStyle: 'bold', fillColor: [250, 240, 240] } },
        { content: money(totalDeductions), styles: { fontStyle: 'bold', halign: 'right', fillColor: [250, 240, 240] } }],
     ],
@@ -363,20 +358,6 @@ function renderPayslip(doc: jsPDF, entry: PayrollEntry, emp: Employee | undefine
   doc.text(money(netSalary), x + w - 6, y + (compact ? 6.5 : 8), { align: 'right' });
   doc.setTextColor(0, 0, 0);
   y += netH + 3;
-
-  if (adv) {
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(compact ? 8.5 : 9.5);
-    doc.setTextColor(120, 35, 35);
-    const advRecovered = Math.max(0, (adv.advanceAmount || 0) - (adv.totalDeducted || 0));
-    doc.text('Advance Recovered:', x + 6, y + 2);
-    doc.text(money(advRecovered), x + w - 6, y + 2, { align: 'right' });
-    y += compact ? 5 : 6;
-    doc.text('Remaining Amount:', x + 6, y + 2);
-    doc.text(money(adv.remainingBalance || 0), x + w - 6, y + 2, { align: 'right' });
-    doc.setTextColor(0, 0, 0);
-    y += compact ? 5 : 6;
-  }
 
   // Amount in words
   doc.setFont('helvetica', 'italic');
