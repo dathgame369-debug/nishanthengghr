@@ -17,7 +17,7 @@ export default function PayslipTemplate({ entry, compact = false }: PayslipProps
   const { earnings, deductions, grossSalary, totalDeductions, netSalary } =
     buildPayslipBreakdown(entry, adv, undefined, emp);
   const advanceRecovered = adv ? Math.max(0, (adv.advanceAmount || 0) - (adv.totalDeducted || 0)) : 0;
-  const remainingAdvance = adv ? (adv.remainingBalance || 0) : 0;
+  const remainingAdvance = adv ? Math.max(0, adv.remainingBalance || 0) : 0;
 
   const text = compact ? 'text-[10px]' : 'text-xs';
   const headText = compact ? 'text-sm' : 'text-lg';
@@ -71,6 +71,12 @@ export default function PayslipTemplate({ entry, compact = false }: PayslipProps
               {deductions.map(r => (
                 <Row key={r.label} label={r.label} value={formatCurrency(r.amount)} compact={compact} />
               ))}
+              {adv && (
+                <>
+                  <Row label="Advance Recovered" value={formatCurrency(advanceRecovered)} compact={compact} />
+                  <Row label="Remaining Advance" value={formatCurrency(remainingAdvance)} compact={compact} />
+                </>
+              )}
               <Row label="Total Deductions" value={formatCurrency(totalDeductions)} compact={compact} bold />
             </tbody>
           </table>
@@ -83,18 +89,6 @@ export default function PayslipTemplate({ entry, compact = false }: PayslipProps
           <span>Net Salary</span>
           <span className="font-mono text-primary">{formatCurrency(netSalary)}</span>
         </div>
-        {adv && (
-          <>
-            <div className={`flex justify-between mt-1 ${text}`}>
-              <span className="text-muted-foreground">Advance Recovered</span>
-              <span className="font-mono font-semibold">{formatCurrency(advanceRecovered)}</span>
-            </div>
-            <div className={`flex justify-between mt-1 ${text}`}>
-              <span className="text-muted-foreground">Remaining Amount</span>
-              <span className="font-mono font-semibold text-destructive">{formatCurrency(remainingAdvance)}</span>
-            </div>
-          </>
-        )}
         <p className={`${text} text-muted-foreground mt-1 italic`}>
           In words: {numberToIndianWords(netSalary)}
         </p>
