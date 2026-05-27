@@ -31,7 +31,11 @@ export default function CustomersPage() {
 
   const openAdd = () => {
     setEdit(null);
-    setForm({ ...empty, id: `CUST${String(customers.length + 1).padStart(4, '0')}` });
+    const maxNum = customers.reduce((m, c) => {
+      const n = parseInt((c.id || '').replace(/^CUST/i, ''), 10);
+      return Number.isFinite(n) && n > m ? n : m;
+    }, 0);
+    setForm({ ...empty, id: `CUST${String(maxNum + 1).padStart(4, '0')}` });
     setDialog(true);
   };
   const openEdit = (c: Customer) => { setEdit(c); setForm(c); setDialog(true); };
