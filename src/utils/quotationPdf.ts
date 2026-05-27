@@ -77,6 +77,13 @@ export function generateQuotationPDF(q: Quotation, items: QuotationItem[]) {
   doc.setFontSize(8.5);
   const addrLines = doc.splitTextToSize(q.customerAddress, leftW - 6);
   doc.text(addrLines, margin + 3, y + 11 + nameLines.length * 4.5);
+  if (q.customerGst) {
+    const gstY = y + 11 + nameLines.length * 4.5 + addrLines.length * 4.5 + 1;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.text(`GSTIN: ${q.customerGst}`, margin + 3, gstY);
+    doc.setFont('helvetica', 'normal');
+  }
 
   // Meta box
   doc.rect(rightX, y, rightW, metaH);
