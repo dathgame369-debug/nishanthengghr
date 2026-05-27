@@ -16,7 +16,8 @@ export default function PayslipTemplate({ entry, compact = false }: PayslipProps
   const adv = advances.find(a => a.employeeId === entry.employeeId);
   const { earnings, deductions, grossSalary, totalDeductions, netSalary } =
     buildPayslipBreakdown(entry, adv, undefined, emp);
-  const remainingAdvance = adv ? Math.max(0, adv.advanceAmount - adv.totalDeducted) : 0;
+  const advanceRecovered = adv ? Math.max(0, (adv.advanceAmount || 0) - (adv.totalDeducted || 0)) : 0;
+  const remainingAdvance = adv ? (adv.remainingBalance || 0) : 0;
 
   const text = compact ? 'text-[10px]' : 'text-xs';
   const headText = compact ? 'text-sm' : 'text-lg';
@@ -83,10 +84,16 @@ export default function PayslipTemplate({ entry, compact = false }: PayslipProps
           <span className="font-mono text-primary">{formatCurrency(netSalary)}</span>
         </div>
         {adv && (
-          <div className={`flex justify-between mt-1 ${text}`}>
-            <span className="text-muted-foreground">Remaining Advance</span>
-            <span className="font-mono font-semibold text-destructive">{formatCurrency(remainingAdvance)}</span>
-          </div>
+          <>
+            <div className={`flex justify-between mt-1 ${text}`}>
+              <span className="text-muted-foreground">Advance Recovered</span>
+              <span className="font-mono font-semibold">{formatCurrency(advanceRecovered)}</span>
+            </div>
+            <div className={`flex justify-between mt-1 ${text}`}>
+              <span className="text-muted-foreground">Remaining Amount</span>
+              <span className="font-mono font-semibold text-destructive">{formatCurrency(remainingAdvance)}</span>
+            </div>
+          </>
         )}
         <p className={`${text} text-muted-foreground mt-1 italic`}>
           In words: {numberToIndianWords(netSalary)}
