@@ -9,8 +9,8 @@ interface HRContextType {
   isLoggedIn: boolean;
   loading: boolean;
   session: Session | null;
-  login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
-  signUp: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
+  login: (username: string, password: string) => Promise<{ ok: boolean; error?: string }>;
+  signUp: (username: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   logout: () => Promise<void>;
   employees: Employee[];
   setEmployees: Setter<Employee>;
@@ -128,14 +128,15 @@ export function HRProvider({ children }: { children: React.ReactNode }) {
 
   // Auth bootstrap
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_evt, s) => {
-      setSession(s);
-    });
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setAuthReady(true);
-    });
-    return () => sub.subscription.unsubscribe();
+    const savedSession = localStorage.getItem('hr_session');
+    if (savedSession) {
+      try {
+        setSession(JSON.parse(savedSession));
+      } catch (e) {
+        console.error('Failed to parse saved session', e);
+      }
+    }
+    setAuthReady(true);
   }, []);
 
   // Load data when logged in
@@ -204,20 +205,42 @@ export function HRProvider({ children }: { children: React.ReactNode }) {
   const setDepartments = useCallback(makeSetter<Department>('departments', setDepartmentsState, deptToRow, () => depRef.current), []);
   const setRoles = useCallback(makeSetter<Role>('roles', setRolesState, roleToRow, () => rolRef.current), []);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return error ? { ok: false, error: error.message } : { ok: true };
+  const login = useCallback(async (username: string, password: string) => {
+    const { data, error } = await supabase
+      .from('login_credentials')
+      .select('username')
+      .eq('username', username)
+      .eq('password', password)
+      .maybeSingle();
+
+    if (error) {
+      return { ok: false, error: error.message };
+    }
+    if (!data) {
+      return { ok: false, error: 'Invalid username or password' };
+    }
+
+    const dummySession = { user: { email: username } } as unknown as Session;
+    setSession(dummySession);
+    localStorage.setItem('hr_session', JSON.stringify(dummySession));
+    return { ok: true };
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
-      email, password,
-      options: { emailRedirectTo: `${window.location.origin}/dashboard` },
-    });
-    return error ? { ok: false, error: error.message } : { ok: true };
+  const signUp = useCallback(async (username: string, password: string) => {
+    const { error } = await supabase
+      .from('login_credentials')
+      .insert({ username, password });
+
+    if (error) {
+      return { ok: false, error: error.message };
+    }
+    return { ok: true };
   }, []);
 
-  const logout = useCallback(async () => { await supabase.auth.signOut(); }, []);
+  const logout = useCallback(async () => {
+    setSession(null);
+    localStorage.removeItem('hr_session');
+  }, []);
 
   if (!authReady) return null;
 

@@ -19,11 +19,6 @@ export default function LoginPage() {
 
   if (isLoggedIn) return <Navigate to="/dashboard" replace />;
 
-  const usernameToEmail = (u: string) => {
-    const clean = u.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
-    return `${clean}@nishanth.local`;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const clean = username.trim();
@@ -31,18 +26,17 @@ export default function LoginPage() {
       toast({ title: 'Username required', variant: 'destructive' });
       return;
     }
-    const email = usernameToEmail(clean);
     setBusy(true);
     try {
       if (mode === 'signup') {
-        const r = await signUp(email, password);
+        const r = await signUp(clean, password);
         if (!r.ok) {
           toast({ title: 'Sign up failed', description: r.error, variant: 'destructive' });
           return;
         }
         toast({ title: 'Account created', description: 'Signing you in...' });
       }
-      const r = await login(email, password);
+      const r = await login(clean, password);
       if (!r.ok) {
         toast({ title: 'Login Failed', description: r.error, variant: 'destructive' });
         return;
