@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Settings, Plus, Pencil, Trash2, Search, Building2, Briefcase, HandCoins } from 'lucide-react';
+import { TablePagination } from '@/components/TablePagination';
 
 export default function SettingsPage() {
   const { departments, setDepartments, roles, setRoles } = useHR();
@@ -31,9 +32,25 @@ export default function SettingsPage() {
     welfareEnabled: false, welfareRate: 0, welfareBasisHours: 4,
   });
 
+  // Pagination states
+  const [deptPage, setDeptPage] = useState(1);
+  const [deptPageSize, setDeptPageSize] = useState(10);
+  const [rolePage, setRolePage] = useState(1);
+  const [rolePageSize, setRolePageSize] = useState(10);
+
   const filteredDepts = departments.filter(d => d.name.toLowerCase().includes(deptSearch.toLowerCase()));
   const filteredRoles = roles.filter(r => r.name.toLowerCase().includes(roleSearch.toLowerCase()));
   const activeDepts = departments.filter(d => d.status === 'Active');
+
+  // Compute pagination details
+  const deptTotalPages = Math.max(1, Math.ceil(filteredDepts.length / deptPageSize));
+  const roleTotalPages = Math.max(1, Math.ceil(filteredRoles.length / rolePageSize));
+
+  const activeDeptPage = Math.min(deptPage, deptTotalPages);
+  const activeRolePage = Math.min(rolePage, roleTotalPages);
+
+  const pagedDepts = filteredDepts.slice((activeDeptPage - 1) * deptPageSize, activeDeptPage * deptPageSize);
+  const pagedRoles = filteredRoles.slice((activeRolePage - 1) * rolePageSize, activeRolePage * rolePageSize);
 
   // Department handlers
   const openAddDept = () => { setEditDept(null); setDeptForm({ name: '', status: 'Active' }); setDeptDialog(true); };
@@ -132,7 +149,7 @@ export default function SettingsPage() {
             <div className="p-4 border-b border-border flex items-center justify-between gap-3">
               <div className="relative flex-1 max-w-xs">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input value={deptSearch} onChange={e => setDeptSearch(e.target.value)} placeholder="Search departments..." className="pl-9" />
+                <Input value={deptSearch} onChange={e => { setDeptSearch(e.target.value); setDeptPage(1); }} placeholder="Search departments..." className="pl-9" />
               </div>
               <Button size="sm" onClick={openAddDept}><Plus className="w-4 h-4 mr-1" /> Add Department</Button>
             </div>
@@ -143,7 +160,7 @@ export default function SettingsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredDepts.map(d => (
+                {pagedDepts.map(d => (
                   <TableRow key={d.id}>
                     <TableCell className="font-medium text-primary text-sm">{d.id}</TableCell>
                     <TableCell className="font-medium">{d.name}</TableCell>
@@ -162,6 +179,14 @@ export default function SettingsPage() {
                 )}
               </TableBody>
             </Table>
+            <TablePagination
+              currentPage={activeDeptPage}
+              totalPages={deptTotalPages}
+              pageSize={deptPageSize}
+              totalItems={filteredDepts.length}
+              onPageChange={setDeptPage}
+              onPageSizeChange={setDeptPageSize}
+            />
           </div>
         </TabsContent>
 
@@ -171,7 +196,7 @@ export default function SettingsPage() {
             <div className="p-4 border-b border-border flex items-center justify-between gap-3">
               <div className="relative flex-1 max-w-xs">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input value={roleSearch} onChange={e => setRoleSearch(e.target.value)} placeholder="Search roles..." className="pl-9" />
+                <Input value={roleSearch} onChange={e => { setRoleSearch(e.target.value); setRolePage(1); }} placeholder="Search roles..." className="pl-9" />
               </div>
               <Button size="sm" onClick={openAddRole}><Plus className="w-4 h-4 mr-1" /> Add Role</Button>
             </div>
@@ -182,7 +207,7 @@ export default function SettingsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredRoles.map(r => (
+                {pagedRoles.map(r => (
                   <TableRow key={r.id}>
                     <TableCell className="font-medium text-primary text-sm">{r.id}</TableCell>
                     <TableCell className="font-medium">{r.name}</TableCell>
@@ -212,6 +237,14 @@ export default function SettingsPage() {
                 )}
               </TableBody>
             </Table>
+            <TablePagination
+              currentPage={activeRolePage}
+              totalPages={roleTotalPages}
+              pageSize={rolePageSize}
+              totalItems={filteredRoles.length}
+              onPageChange={setRolePage}
+              onPageSizeChange={setRolePageSize}
+            />
           </div>
         </TabsContent>
       </Tabs>

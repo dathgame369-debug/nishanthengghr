@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Users, Plus, Pencil, Trash2, Search } from 'lucide-react';
+import { TablePagination } from '@/components/TablePagination';
 
 const empty: Customer = {
   id: '', name: '', address: '', gstNumber: '', contactPerson: '', phone: '', email: '',
@@ -24,10 +25,17 @@ export default function CustomersPage() {
   const [edit, setEdit] = useState<Customer | null>(null);
   const [form, setForm] = useState<Customer>(empty);
 
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
   const filtered = customers.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
     c.gstNumber.toLowerCase().includes(search.toLowerCase()),
   );
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const activePage = Math.min(page, totalPages);
+  const paged = filtered.slice((activePage - 1) * pageSize, activePage * pageSize);
 
   const openAdd = () => {
     setEdit(null);
@@ -79,7 +87,7 @@ export default function CustomersPage() {
         <div className="p-4 border-b border-border flex items-center justify-between gap-3">
           <div className="relative flex-1 max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name or GST..." className="pl-9" />
+            <Input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search name or GST..." className="pl-9" />
           </div>
           <Button size="sm" onClick={openAdd}><Plus className="w-4 h-4 mr-1" /> Add Customer</Button>
         </div>
@@ -92,7 +100,7 @@ export default function CustomersPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map(c => (
+            {paged.map(c => (
               <TableRow key={c.id}>
                 <TableCell className="font-medium text-primary text-sm">{c.id}</TableCell>
                 <TableCell className="font-medium">{c.name}</TableCell>
@@ -119,6 +127,14 @@ export default function CustomersPage() {
             )}
           </TableBody>
         </Table>
+        <TablePagination
+          currentPage={activePage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          totalItems={filtered.length}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
 
       <Dialog open={dialog} onOpenChange={setDialog}>

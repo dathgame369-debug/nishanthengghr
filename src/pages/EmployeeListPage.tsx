@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Users, Pencil, Trash2, Search, UserPlus } from 'lucide-react';
 import { usePayslipComponents } from '@/hooks/useCompanySettings';
 import { PayslipComponents } from '@/utils/companySettings';
+import { TablePagination } from '@/components/TablePagination';
 
 export default function EmployeeListPage() {
   const { employees, setEmployees, payroll, setPayroll, departments, roles } = useHR();
@@ -20,6 +21,8 @@ export default function EmployeeListPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [editEmp, setEditEmp] = useState<Employee | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const activeDepts = departments.filter(d => d.status === 'Active');
   const activeRoles = roles.filter(r => r.status === 'Active');
@@ -27,6 +30,9 @@ export default function EmployeeListPage() {
   const filtered = employees.filter(e =>
     e.name.toLowerCase().includes(search.toLowerCase()) || e.id.toLowerCase().includes(search.toLowerCase())
   );
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   const handleSave = () => {
     if (!editEmp) return;
@@ -77,7 +83,7 @@ export default function EmployeeListPage() {
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
           <div className="relative w-full sm:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or ID..." className="pl-9" />
+            <Input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search by name or ID..." className="pl-9" />
           </div>
           <Button onClick={() => navigate('/add-employee')} className="shadow-md w-full sm:w-auto">
             <UserPlus className="w-4 h-4 mr-2" /> Add Employee
@@ -97,7 +103,7 @@ export default function EmployeeListPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map(emp => (
+            {paged.map(emp => (
               <TableRow key={emp.id}>
                 <TableCell className="font-medium text-primary">{emp.id}</TableCell>
                 <TableCell className="font-medium">{emp.name}</TableCell>
@@ -132,6 +138,14 @@ export default function EmployeeListPage() {
             )}
           </TableBody>
         </Table>
+        <TablePagination
+          currentPage={page}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          totalItems={filtered.length}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
 
       <Dialog open={!!editEmp} onOpenChange={() => setEditEmp(null)}>

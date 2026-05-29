@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { CalendarDays, Plus, Search, Eye, Pencil, Trash2, Download, FileText, IndianRupee, Users, TrendingUp } from 'lucide-react';
 import { generatePayslipPDF } from '@/utils/pdfExport';
+import { TablePagination } from '@/components/TablePagination';
 
 interface PayrollFormData {
   employeeId: string;
@@ -47,6 +48,8 @@ export default function PayrollPage() {
   const [filterMonth, setFilterMonth] = useState<string>('All');
   const [filterYear, setFilterYear] = useState<number | 'All'>(currentYear);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -66,6 +69,9 @@ export default function PayrollPage() {
       return true;
     }).sort((a, b) => b.date.localeCompare(a.date));
   }, [payroll, filterMonth, filterYear, search, currentYear]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   const stats = useMemo(() => {
     const totalNet = filtered.reduce((s, p) => s + p.netPayable, 0);
@@ -261,16 +267,16 @@ export default function PayrollPage() {
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[220px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Search by name or employee ID..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+            <Input placeholder="Search by name or employee ID..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} className="pl-9" />
           </div>
-          <Select value={filterMonth} onValueChange={setFilterMonth}>
+          <Select value={filterMonth} onValueChange={v => { setFilterMonth(v); setPage(1); }}>
             <SelectTrigger className="w-40"><SelectValue placeholder="Month" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="All">All Months</SelectItem>
               {MONTHS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={String(filterYear)} onValueChange={v => setFilterYear(v === 'All' ? 'All' : Number(v))}>
+          <Select value={String(filterYear)} onValueChange={v => { setFilterYear(v === 'All' ? 'All' : Number(v)); setPage(1); }}>
             <SelectTrigger className="w-32"><SelectValue placeholder="Year" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="All">All Years</SelectItem>
@@ -306,7 +312,7 @@ export default function PayrollPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map(entry => (
+                {paged.map(entry => (
                   <TableRow key={entry.id} className="hover:bg-muted/30">
                     <TableCell className="font-medium text-primary">{entry.employeeId}</TableCell>
                     <TableCell className="font-medium">{entry.employeeName}</TableCell>
@@ -339,6 +345,14 @@ export default function PayrollPage() {
                 ))}
               </TableBody>
             </Table>
+          <TablePagination
+            currentPage={page}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalItems={filtered.length}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
           </div>
         )}
       </div>

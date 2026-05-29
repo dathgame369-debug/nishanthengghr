@@ -13,6 +13,7 @@ import {
   generateBulkPayslipPDF,
   exportPayslipsExcel,
 } from '@/utils/pdfExport';
+import { TablePagination } from '@/components/TablePagination';
 
 export default function PayslipPage() {
   const { employees, payroll, advances } = useHR();
@@ -29,6 +30,8 @@ export default function PayslipPage() {
   const [dateTo, setDateTo] = useState('');
   const [bulkLayout, setBulkLayout] = useState<'full' | 'compact'>('full');
   const [previewMode, setPreviewMode] = useState<'compact' | 'full'>('compact');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(6);
 
   // Option lists derived from data
   const monthOptions = MONTHS.map(m => ({ value: m, label: m }));
@@ -56,6 +59,7 @@ export default function PayslipPage() {
     setStatuses([]);
     setDateFrom('');
     setDateTo('');
+    setPage(1);
   };
 
   // Apply all filters
@@ -83,6 +87,9 @@ export default function PayslipPage() {
       return MONTHS.indexOf(a.month) - MONTHS.indexOf(b.month);
     });
   }, [payroll, employees, months, years, empIds, departments, designations, statuses, dateFrom, dateTo, currentYear]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredEntries.length / pageSize));
+  const pagedEntries = filteredEntries.slice((page - 1) * pageSize, page * pageSize);
 
   const selectAllEmployees = () => setEmpIds(employees.map(e => e.id));
 
@@ -201,13 +208,22 @@ export default function PayslipPage() {
       ) : (
         <div className="space-y-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Eye className="w-4 h-4" /> Previewing {filteredEntries.length} payslip{filteredEntries.length === 1 ? '' : 's'}
+            <Eye className="w-4 h-4" /> Previewing {filteredEntries.length} payslip{filteredEntries.length === 1 ? '' : 's'} — page {page} of {totalPages}
           </div>
           <div className={previewMode === 'compact' ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' : 'space-y-6 max-w-2xl mx-auto'}>
-            {filteredEntries.map(entry => (
+            {pagedEntries.map(entry => (
               <PayslipTemplate key={entry.id} entry={entry} compact={previewMode === 'compact'} />
             ))}
           </div>
+          <TablePagination
+            currentPage={page}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalItems={filteredEntries.length}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+            pageSizeOptions={[3, 6, 12, 24]}
+          />
         </div>
       )}
     </div>

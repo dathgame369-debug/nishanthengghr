@@ -11,6 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from '@/hooks/use-toast';
 import { Wallet, Plus, Pencil, Trash2 } from 'lucide-react';
 import { formatCurrency } from '@/types/hr';
+import { TablePagination } from '@/components/TablePagination';
 
 export default function AdvanceManagementPage() {
   const { employees, advances, setAdvances } = useHR();
@@ -18,10 +19,15 @@ export default function AdvanceManagementPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [editAdv, setEditAdv] = useState<Advance | null>(null);
   const [deleteAdv, setDeleteAdv] = useState<Advance | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [form, setForm] = useState({
     employeeId: '', advanceDate: '', advanceAmount: '', deductionType: 'Manual' as 'Manual' | 'EMI',
     monthlyDeductionAmount: '', notes: '',
   });
+
+  const totalPages = Math.max(1, Math.ceil(advances.length / pageSize));
+  const paged = advances.slice((page - 1) * pageSize, page * pageSize);
 
   const handleAdd = () => {
     const emp = employees.find(e => e.id === form.employeeId);
@@ -89,7 +95,7 @@ export default function AdvanceManagementPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {advances.map(adv => (
+            {paged.map(adv => (
               <TableRow key={adv.id}>
                 <TableCell className="font-medium text-primary">{adv.employeeId}</TableCell>
                 <TableCell>{adv.employeeName}</TableCell>
@@ -117,6 +123,14 @@ export default function AdvanceManagementPage() {
             )}
           </TableBody>
         </Table>
+        <TablePagination
+          currentPage={page}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          totalItems={advances.length}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
 
       {/* Add Dialog */}

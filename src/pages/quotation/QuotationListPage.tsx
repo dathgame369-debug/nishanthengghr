@@ -10,8 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useToast } from '@/hooks/use-toast';
 import { FileText, Plus, Pencil, Trash2, Download, Search } from 'lucide-react';
 import { generateQuotationPDF } from '@/utils/quotationPdf';
-
-const PAGE_SIZE = 10;
+import { TablePagination } from '@/components/TablePagination';
 
 const statusColor = (s: string) => {
   switch (s) {
@@ -30,6 +29,7 @@ export default function QuotationListPage() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('All');
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const filtered = useMemo(() => {
     return quotations.filter(q => {
@@ -41,8 +41,9 @@ export default function QuotationListPage() {
     });
   }, [quotations, search, status]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const activePage = Math.min(page, totalPages);
+  const paged = filtered.slice((activePage - 1) * pageSize, activePage * pageSize);
 
   const handleDownload = (id: string) => {
     const q = quotations.find(x => x.id === id);
@@ -134,15 +135,14 @@ export default function QuotationListPage() {
           </TableBody>
         </Table>
 
-        {totalPages > 1 && (
-          <div className="p-3 border-t border-border flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Page {page} of {totalPages} ({filtered.length} total)</span>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" disabled={page === 1} onClick={() => setPage(p => p - 1)}>Prev</Button>
-              <Button size="sm" variant="outline" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>Next</Button>
-            </div>
-          </div>
-        )}
+        <TablePagination
+          currentPage={activePage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          totalItems={filtered.length}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
     </div>
   );

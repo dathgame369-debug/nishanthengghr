@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Card, CardContent } from '@/components/ui/card';
 import { Users, DollarSign, Clock, Gift, Wallet, Search, UserPlus, Download, FileText, FileSpreadsheet, Eye } from 'lucide-react';
 import { generatePayslipPDF, generateBulkPayslipPDF, exportPayrollExcel, exportPayrollPDF } from '@/utils/pdfExport';
+import { TablePagination } from '@/components/TablePagination';
 
 export default function DashboardPage() {
   const { employees, payroll, advances } = useHR();
@@ -17,11 +18,16 @@ export default function DashboardPage() {
   const [selectedMonth, setSelectedMonth] = useState(MONTHS[new Date().getMonth()]);
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const monthEntries = payroll.filter(p => p.month === selectedMonth && (p.year || currentYear) === selectedYear);
   const filtered = monthEntries.filter(e =>
     e.employeeName.toLowerCase().includes(search.toLowerCase()) || e.employeeId.toLowerCase().includes(search.toLowerCase())
   );
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   const totalPayroll = monthEntries.reduce((s, e) => s + e.netPayable, 0);
   const totalOT = monthEntries.reduce((s, e) => s + e.otAmount, 0);
@@ -61,17 +67,17 @@ export default function DashboardPage() {
 
       <div className="bg-card rounded-xl p-4 card-shadow border border-border mb-6">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+          <Select value={selectedMonth} onValueChange={v => { setSelectedMonth(v); setPage(1); }}>
             <SelectTrigger className="w-32 sm:w-40"><SelectValue /></SelectTrigger>
             <SelectContent>{MONTHS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
           </Select>
-          <Select value={String(selectedYear)} onValueChange={v => setSelectedYear(Number(v))}>
+          <Select value={String(selectedYear)} onValueChange={v => { setSelectedYear(Number(v)); setPage(1); }}>
             <SelectTrigger className="w-24 sm:w-28"><SelectValue /></SelectTrigger>
             <SelectContent>{getYearOptions().map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
           </Select>
           <div className="relative flex-1 min-w-[160px] max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search employee..." className="pl-9" />
+            <Input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search employee..." className="pl-9" />
           </div>
           <div className="sm:ml-auto flex gap-2 flex-wrap w-full sm:w-auto">
             <Button variant="outline" size="sm" onClick={() => navigate('/add-employee')}><UserPlus className="w-4 h-4 mr-1" /> Add Employee</Button>
@@ -98,7 +104,7 @@ export default function DashboardPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map(e => (
+            {paged.map(e => (
               <TableRow key={e.id}>
                 <TableCell className="font-medium text-primary text-sm">{e.employeeId}</TableCell>
                 <TableCell className="text-sm">{e.employeeName}</TableCell>
@@ -133,6 +139,14 @@ export default function DashboardPage() {
             )}
           </TableBody>
         </Table>
+        <TablePagination
+          currentPage={page}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          totalItems={filtered.length}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
     </div>
   );
