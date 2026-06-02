@@ -50,6 +50,7 @@ export default function PayslipTemplate({ entry, compact = false }: PayslipProps
         <Info label="Designation" value={emp?.designation || "—"} />
         <Info label="Date of Joining" value={emp?.dateOfJoining || "—"} />
         <Info label="Pay Date" value={entry.date} />
+        <Info label="No. of Leaves" value={String(entry.noOfLeaves || 0)} />
       </div>
 
       {/* Earnings / Deductions */}

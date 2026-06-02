@@ -25,6 +25,7 @@ interface PayrollFormData {
   otHours: number;
   advanceDeduction: number;
   bonus: number;
+  noOfLeaves: number;
 }
 
 const emptyForm = (): PayrollFormData => ({
@@ -38,6 +39,7 @@ const emptyForm = (): PayrollFormData => ({
   otHours: 0,
   advanceDeduction: 0,
   bonus: 0,
+  noOfLeaves: 0,
 });
 
 export default function PayrollPage() {
@@ -108,6 +110,7 @@ export default function PayrollPage() {
       otHours: entry.otHours,
       advanceDeduction: entry.advanceDeduction,
       bonus: entry.bonus,
+      noOfLeaves: entry.noOfLeaves || 0,
     });
     setFormOpen(true);
   };
@@ -150,6 +153,7 @@ export default function PayrollPage() {
       otHours: form.otHours,
       advanceDeduction: form.advanceDeduction,
       bonus: form.bonus,
+      noOfLeaves: form.noOfLeaves,
       ...calcResult,
     };
 
@@ -304,6 +308,7 @@ export default function PayrollPage() {
                   <TableHead className="font-semibold">Period</TableHead>
                   <TableHead className="font-semibold">Date</TableHead>
                   <TableHead className="text-center font-semibold">Days</TableHead>
+                  <TableHead className="text-center font-semibold">Leaves</TableHead>
                   <TableHead className="text-center font-semibold">OT Hrs</TableHead>
                   <TableHead className="text-right font-semibold">Salary</TableHead>
                   <TableHead className="text-right font-semibold">Adv. Ded.</TableHead>
@@ -321,6 +326,7 @@ export default function PayrollPage() {
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{entry.date}</TableCell>
                     <TableCell className="text-center">{entry.presentDays + entry.holidays}</TableCell>
+                    <TableCell className="text-center">{entry.noOfLeaves || 0}</TableCell>
                     <TableCell className="text-center">{entry.otHours}</TableCell>
                     <TableCell className="text-right font-mono text-sm">{formatCurrency(entry.monthlySalary)}</TableCell>
                     <TableCell className="text-right font-mono text-sm text-destructive">{formatCurrency(entry.advanceDeduction)}</TableCell>
@@ -420,6 +426,10 @@ export default function PayrollPage() {
             </div>
 
             <div>
+              <Label className="text-sm font-medium">No. of Leaves</Label>
+              <Input type="number" min="0" value={form.noOfLeaves} onChange={e => setForm(f => ({ ...f, noOfLeaves: parseInt(e.target.value) || 0 }))} className="mt-1.5" />
+            </div>
+            <div>
               <Label className="text-sm font-medium">OT Hours</Label>
               <Input type="number" min="0" value={form.otHours} onChange={e => setForm(f => ({ ...f, otHours: parseFloat(e.target.value) || 0 }))} className="mt-1.5" />
             </div>
@@ -493,6 +503,7 @@ export default function PayrollPage() {
                       ['Monthly Salary', viewEntry.monthlySalary],
                       ['Present Days', viewEntry.presentDays, 'Present Amount', viewEntry.presentAmount],
                       ['Holidays', viewEntry.holidays, 'Holiday Amount', viewEntry.holidayAmount],
+                      ['No. of Leaves', viewEntry.noOfLeaves || 0],
                       ['OT Hours', viewEntry.otHours, 'OT Amount', viewEntry.otAmount],
                       ['Welfare', viewEntry.welfareAmount],
                       ['Bonus', viewEntry.bonus],

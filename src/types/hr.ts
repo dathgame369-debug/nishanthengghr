@@ -51,6 +51,7 @@ export interface PayrollEntry {
   otAmount: number;
   welfareAmount: number;
   advanceDeduction: number;
+  noOfLeaves?: number;
   bonus: number;
   netPayable: number;
 }

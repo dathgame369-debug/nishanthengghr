@@ -140,6 +140,8 @@ function renderPayslipMini(
   iy += lh;
   pair(x + 2, "Dept", emp?.department || "-");
   pair(x + w / 2, "Desig", emp?.designation || "-");
+  iy += lh;
+  pair(x + 2, "Leaves", String(entry.noOfLeaves || 0));
 
   const tableTop = iy + 3;
   const halfW = (w - 6) / 2;
@@ -218,6 +220,7 @@ export function exportPayslipsExcel(entries: PayrollEntry[], employees: Employee
           Holidays: e.holidays,
           "Working Days": workingDays,
           "Leave Days": leaveDays,
+          "No. of Leaves": e.noOfLeaves || 0,
           "OT Hours": e.otHours,
           "Basic Salary": b.earnings.find((r) => r.label === "Basic Salary")?.amount || 0,
           HRA: 0,
@@ -334,8 +337,10 @@ function renderPayslip(
   iy += lh;
   drawPair(colA, "Date of Join", emp?.dateOfJoining || "-");
   drawPair(colB, "Pay Date", entry.date);
+  iy += lh;
+  drawPair(colA, "No. of Leaves", String(entry.noOfLeaves || 0));
 
-  y += infoH;
+  y += infoH + (compact ? 2 : 4);
   doc.setDrawColor(200);
   doc.setLineWidth(0.2);
   doc.line(x, y, x + w, y);
