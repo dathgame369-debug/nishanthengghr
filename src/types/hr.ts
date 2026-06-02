@@ -109,7 +109,7 @@ export function calculatePayroll(
   if (welfare && welfare.enabled && welfare.basisHours > 0) {
     welfareAmount = ((entry.otHours || 0) / welfare.basisHours) * welfare.rate;
   }
-  const netPayable = presentAmount + holidayAmount + otAmount + welfareAmount + (entry.bonus || 0) - (entry.advanceDeduction || 0);
+  const netPayable = Math.round(presentAmount + holidayAmount + otAmount + welfareAmount + (entry.bonus || 0) - (entry.advanceDeduction || 0));
   return { presentAmount, holidayAmount, otAmount, welfareAmount, netPayable };
 }
 

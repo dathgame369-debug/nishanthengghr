@@ -84,7 +84,7 @@ const payFromRow = (r: any): PayrollEntry => ({
   holidayAmount: Number(r.holiday_amount), otHours: Number(r.ot_hours),
   otAmount: Number(r.ot_amount), welfareAmount: Number(r.welfare_amount),
   advanceDeduction: Number(r.advance_deduction), bonus: Number(r.bonus),
-  netPayable: Number(r.net_payable), noOfLeaves: Number(r.no_of_leaves || 0),
+  netPayable: Math.round(Number(r.net_payable)), noOfLeaves: Number(r.no_of_leaves || 0),
 });
 const deptFromRow = (r: any): Department => ({ id: r.id, name: r.name, status: r.status });
 const deptToRow = (d: Department) => ({ id: d.id, name: d.name, status: d.status });

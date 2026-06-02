@@ -307,7 +307,8 @@ export default function PayrollPage() {
                   <TableHead className="font-semibold">Employee</TableHead>
                   <TableHead className="font-semibold">Period</TableHead>
                   <TableHead className="font-semibold">Date</TableHead>
-                  <TableHead className="text-center font-semibold">Days</TableHead>
+                  <TableHead className="text-center font-semibold">Present</TableHead>
+                  <TableHead className="text-center font-semibold">Holidays</TableHead>
                   <TableHead className="text-center font-semibold">Leaves</TableHead>
                   <TableHead className="text-center font-semibold">OT Hrs</TableHead>
                   <TableHead className="text-right font-semibold">Salary</TableHead>
@@ -325,7 +326,8 @@ export default function PayrollPage() {
                       <Badge variant="secondary" className="font-normal">{entry.month} {entry.year || currentYear}</Badge>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{entry.date}</TableCell>
-                    <TableCell className="text-center">{entry.presentDays + entry.holidays}</TableCell>
+                    <TableCell className="text-center">{entry.presentDays}</TableCell>
+                    <TableCell className="text-center">{entry.holidays}</TableCell>
                     <TableCell className="text-center">{entry.noOfLeaves || 0}</TableCell>
                     <TableCell className="text-center">{entry.otHours}</TableCell>
                     <TableCell className="text-right font-mono text-sm">{formatCurrency(entry.monthlySalary)}</TableCell>
@@ -503,7 +505,7 @@ export default function PayrollPage() {
                       ['Monthly Salary', viewEntry.monthlySalary],
                       ['Present Days', viewEntry.presentDays, 'Present Amount', viewEntry.presentAmount],
                       ['Holidays', viewEntry.holidays, 'Holiday Amount', viewEntry.holidayAmount],
-                      ['No. of Leaves', viewEntry.noOfLeaves || 0],
+                      ['No. of Leaves', viewEntry.noOfLeaves || 0, 'Leave Amount', (viewEntry.noOfLeaves || 0) * (viewEntry.monthlySalary / 26)],
                       ['OT Hours', viewEntry.otHours, 'OT Amount', viewEntry.otAmount],
                       ['Welfare', viewEntry.welfareAmount],
                       ['Bonus', viewEntry.bonus],
@@ -511,7 +513,7 @@ export default function PayrollPage() {
                     ].map((row, i) => (
                       <tr key={i} className="border-b border-border last:border-0">
                         <td className="px-3 py-2 text-muted-foreground">{row[0]}</td>
-                        <td className="px-3 py-2 text-right font-mono">{typeof row[1] === 'number' && ((row[0] as string).includes('Days') || (row[0] as string).includes('Hours') || (row[0] as string).includes('Leaves')) ? row[1] : formatCurrency(row[1] as number)}</td>
+                        <td className="px-3 py-2 text-right font-mono">{typeof row[1] === 'number' && ((row[0] as string).includes('Days') || (row[0] as string).includes('Hours') || (row[0] as string).includes('Leaves') || row[0] === 'Holidays') ? row[1] : formatCurrency(row[1] as number)}</td>
                         {row.length > 2 && (
                           <>
                             <td className="px-3 py-2 text-muted-foreground border-l border-border">{row[2]}</td>

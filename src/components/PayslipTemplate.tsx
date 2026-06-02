@@ -14,12 +14,12 @@ export default function PayslipTemplate({ entry, compact = false }: PayslipProps
   const [company] = useCompanyInfo();
   const emp = employees.find((e) => e.id === entry.employeeId);
   const adv = advances.find((a) => a.employeeId === entry.employeeId);
-  const { netSalary } = buildPayslipBreakdown(
-    entry,
-    adv,
-    undefined,
-    emp,
-  );
+  
+  const calcLeaves = entry.noOfLeaves || 0;
+  const leaveAmt = calcLeaves * (entry.monthlySalary / 26);
+  const totalEarning = entry.presentAmount + entry.holidayAmount + (entry.otAmount || 0) + (entry.welfareAmount || 0) + (entry.bonus || 0) + leaveAmt;
+  const totalDeductionDisplay = leaveAmt + (entry.advanceDeduction || 0);
+  const calculatedNet = entry.netPayable;
 
   const text = compact ? "text-[10px]" : "text-xs";
   const headText = compact ? "text-sm" : "text-lg";
@@ -49,6 +49,8 @@ export default function PayslipTemplate({ entry, compact = false }: PayslipProps
         <Info label="Designation" value={emp?.designation || "—"} />
         <Info label="Date of Joining" value={emp?.dateOfJoining || "—"} />
         <Info label="Pay Date" value={entry.date} />
+        <Info label="Present Days" value={String(entry.presentDays || 0)} />
+        <Info label="No. of Leaves" value={String(calcLeaves)} />
       </div>
 
       {/* Earnings Section */}
@@ -65,7 +67,6 @@ export default function PayslipTemplate({ entry, compact = false }: PayslipProps
               ['Monthly Salary', entry.monthlySalary],
               ['Present Days', entry.presentDays, 'Present Amount', entry.presentAmount],
               ['Holidays', entry.holidays, 'Holiday Amount', entry.holidayAmount],
-              ['No. of Leaves', entry.noOfLeaves || 0],
               ['OT Hours', entry.otHours, 'OT Amount', entry.otAmount],
               ['Welfare', entry.welfareAmount],
               ['Bonus', entry.bonus],
@@ -84,7 +85,7 @@ export default function PayslipTemplate({ entry, compact = false }: PayslipProps
                   <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-muted-foreground`} colSpan={1}>{row[0]}</td>
                   <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right font-mono`}>
                     {typeof row[1] === 'number' && isCountColumn
-                      ? Math.round(row[1])
+                      ? row[1]
                       : formatCurrency(row[1] as number)
                     }
                   </td>
@@ -104,6 +105,12 @@ export default function PayslipTemplate({ entry, compact = false }: PayslipProps
                 </tr>
               );
             })}
+            <tr className="bg-primary/5 font-bold">
+              <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right`} colSpan={3}>TOTAL EARNINGS</td>
+              <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right font-mono text-primary`}>
+                {formatCurrency(totalEarning)}
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -119,10 +126,20 @@ export default function PayslipTemplate({ entry, compact = false }: PayslipProps
           </thead>
           <tbody>
             <tr className="border-b border-border">
+              <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-muted-foreground`}>Leave Deduction ({calcLeaves} Days)</td>
+              <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right font-mono`}>{formatCurrency(leaveAmt)}</td>
+            </tr>
+            <tr className="border-b border-border">
               <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-muted-foreground`}>Advance Deduction</td>
               <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right font-mono`}>{formatCurrency(entry.advanceDeduction)}</td>
             </tr>
-            <tr className="border-b border-border last:border-0">
+            <tr className="bg-destructive/5 font-bold border-b border-border">
+              <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right`}>TOTAL DEDUCTIONS</td>
+              <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right font-mono text-destructive`}>
+                {formatCurrency(totalDeductionDisplay)}
+              </td>
+            </tr>
+            <tr className="last:border-0">
               <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-muted-foreground`}>
                 Balance Advance <span className="text-[9px] opacity-60">(Advance Mgmt/Balance)</span>
               </td>
@@ -140,9 +157,9 @@ export default function PayslipTemplate({ entry, compact = false }: PayslipProps
           className={`flex justify-between ${compact ? "pt-1" : "pt-2"} ${compact ? "text-sm" : "text-base"} font-bold`}
         >
           <span>Net Salary</span>
-          <span className="font-mono text-primary">{formatCurrency(netSalary)}</span>
+          <span className="font-mono text-primary">{formatCurrency(calculatedNet)}</span>
         </div>
-        <p className={`${text} text-muted-foreground mt-1 italic`}>In words: {numberToIndianWords(netSalary)}</p>
+        <p className={`${text} text-muted-foreground mt-1 italic`}>In words: {numberToIndianWords(calculatedNet)}</p>
       </div>
 
       {/* Signatures */}

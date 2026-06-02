@@ -71,17 +71,17 @@ export default function AdvanceManagementPage() {
 
   return (
     <div className="animate-fade-in">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
             <Wallet className="w-5 h-5 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold font-heading text-foreground">Advance / Loan Management</h1>
+            <h1 className="text-xl sm:text-2xl font-bold font-heading text-foreground">Advance / Loan Management</h1>
             <p className="text-sm text-muted-foreground">Manage employee salary advances</p>
           </div>
         </div>
-        <Button onClick={() => setShowAdd(true)}><Plus className="w-4 h-4 mr-2" /> Add Advance</Button>
+        <Button onClick={() => setShowAdd(true)} className="w-full sm:w-auto"><Plus className="w-4 h-4 mr-2" /> Add Advance</Button>
       </div>
 
       <div className="bg-card rounded-xl card-shadow border border-border overflow-x-auto">
@@ -91,7 +91,7 @@ export default function AdvanceManagementPage() {
               <TableHead>Emp ID</TableHead><TableHead>Name</TableHead><TableHead>Date</TableHead>
               <TableHead className="text-right">Amount</TableHead><TableHead>Type</TableHead>
               <TableHead className="text-right">Monthly Ded.</TableHead><TableHead className="text-right">Total Ded.</TableHead>
-              <TableHead className="text-right">Balance</TableHead><TableHead>Status</TableHead><TableHead className="sticky right-0 bg-muted/50 text-right">Actions</TableHead>
+              <TableHead className="text-right">Balance</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -110,7 +110,7 @@ export default function AdvanceManagementPage() {
                     {adv.status}
                   </Badge>
                 </TableCell>
-                <TableCell className="sticky right-0 bg-card">
+                <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-2">
                     <Button variant="ghost" size="icon" onClick={() => setEditAdv({ ...adv })}><Pencil className="w-4 h-4" /></Button>
                     <Button variant="ghost" size="icon" onClick={() => setDeleteAdv(adv)} className="text-destructive hover:text-destructive"><Trash2 className="w-4 h-4" /></Button>

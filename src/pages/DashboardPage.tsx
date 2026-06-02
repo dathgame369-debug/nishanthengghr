@@ -49,7 +49,7 @@ export default function DashboardPage() {
         <p className="text-sm text-muted-foreground">Nishanth Engineering Works — HR Overview</p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-6">
         {stats.map(s => (
           <Card key={s.label} className="card-shadow">
             <CardContent className="p-4 flex items-center gap-3">

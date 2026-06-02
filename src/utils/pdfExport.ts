@@ -88,12 +88,11 @@ function renderPayslipMini(
   h: number,
   adv?: Advance,
 ) {
-  const { netSalary } = buildPayslipBreakdown(
-    entry,
-    adv,
-    undefined,
-    emp,
-  );
+  const calcLeaves = entry.noOfLeaves || 0;
+  const leaveAmt = calcLeaves * (entry.monthlySalary / 26);
+  const totalEarning = entry.presentAmount + entry.holidayAmount + (entry.otAmount || 0) + (entry.welfareAmount || 0) + (entry.bonus || 0) + leaveAmt;
+  const totalDeductionDisplay = leaveAmt + (entry.advanceDeduction || 0);
+  const calculatedNet = entry.netPayable;
   const company = getCompanyInfo();
   const logo = company.logoDataUrl || logoBase64;
 
@@ -141,7 +140,7 @@ function renderPayslipMini(
   pair(x + w / 2, "Desig", emp?.designation || "-");
   iy += lh;
   pair(x + 2, "Present", String(entry.presentDays || 0));
-  pair(x + w / 2, "Leaves", String(entry.noOfLeaves || 0));
+  pair(x + w / 2, "Leaves", String(calcLeaves));
 
   const tableTop = iy + 3;
 
@@ -149,10 +148,10 @@ function renderPayslipMini(
     ["Monthly Salary", money(entry.monthlySalary), "", ""],
     ["Present Days", entry.presentDays, "Present Amt", money(entry.presentAmount)],
     ["Holidays", entry.holidays, "Holiday Amt", money(entry.holidayAmount)],
-    ["No. of Leaves", entry.noOfLeaves || 0, "", ""],
     ["OT Hours", entry.otHours, "OT Amt", money(entry.otAmount)],
     ["Welfare", money(entry.welfareAmount), "", ""],
     ["Bonus", money(entry.bonus), "", ""],
+    [{ content: "TOTAL EARNINGS", colSpan: 3, styles: { halign: "right", fontStyle: "bold" } }, money(totalEarning)]
   ];
 
   autoTable(doc, {
@@ -185,7 +184,9 @@ function renderPayslipMini(
       { content: "AMT", styles: { halign: "right" } },
     ]],
     body: [
+      ["Leave Ded.", money(leaveAmt)],
       ["Adv Ded.", money(entry.advanceDeduction)],
+      [{ content: "TOTAL DEDS", styles: { halign: "right", fontStyle: "bold" } }, money(totalDeductionDisplay)],
       ["Balance Advance", money(miniBalanceAdv)],
     ],
     theme: "grid",
@@ -207,7 +208,7 @@ function renderPayslipMini(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.text("NET SALARY", x + 5, ny + 5.2);
-  doc.text(money(netSalary), x + w - 5, ny + 5.2, { align: "right" });
+  doc.text(money(calculatedNet), x + w - 5, ny + 5.2, { align: "right" });
   doc.setTextColor(0, 0, 0);
 }
 
@@ -281,12 +282,11 @@ function renderPayslip(
   const w = 180;
   let y = startY;
 
-  const { netSalary } = buildPayslipBreakdown(
-    entry,
-    adv,
-    undefined,
-    emp,
-  );
+  const calcLeaves = entry.noOfLeaves || 0;
+  const leaveAmt = calcLeaves * (entry.monthlySalary / 26);
+  const totalEarning = entry.presentAmount + entry.holidayAmount + (entry.otAmount || 0) + (entry.welfareAmount || 0) + (entry.bonus || 0) + leaveAmt;
+  const totalDeductionDisplay = leaveAmt + (entry.advanceDeduction || 0);
+  const calculatedNet = entry.netPayable;
   const company = getCompanyInfo();
   const logo = company.logoDataUrl || logoBase64;
 
@@ -352,7 +352,7 @@ function renderPayslip(
   drawPair(colB, "Pay Date", entry.date);
   iy += lh;
   drawPair(colA, "Present Days", String(entry.presentDays || 0));
-  drawPair(colB, "No. of Leaves", String(entry.noOfLeaves || 0));
+  drawPair(colB, "No. of Leaves", String(calcLeaves));
 
   y += infoH + (compact ? 2 : 4);
   doc.setDrawColor(200);
@@ -368,15 +368,14 @@ function renderPayslip(
     return val;
   };
 
-  // EARNINGS table
   const earningsRows = [
     ["Monthly Salary", formatCell(entry.monthlySalary), "", ""],
     ["Present Days", formatCell(entry.presentDays, false), "Present Amount", formatCell(entry.presentAmount)],
     ["Holidays", formatCell(entry.holidays, false), "Holiday Amount", formatCell(entry.holidayAmount)],
-    ["No. of Leaves", formatCell(entry.noOfLeaves || 0, false), "", ""],
     ["OT Hours", formatCell(entry.otHours, false), "OT Amount", formatCell(entry.otAmount)],
     ["Welfare", formatCell(entry.welfareAmount), "", ""],
     ["Bonus", formatCell(entry.bonus), "", ""],
+    [{ content: "TOTAL EARNINGS", colSpan: 3, styles: { halign: "right", fontStyle: "bold" } }, formatCell(totalEarning)],
   ];
 
   autoTable(doc, {
@@ -406,7 +405,9 @@ function renderPayslip(
   // DEDUCTIONS table
   const balanceAdvance = adv ? Math.max(0, adv.remainingBalance || 0) : 0;
   const deductionsRows = [
+    [`Leave Deduction (${calcLeaves} Days)`, formatCell(leaveAmt)],
     ["Advance Deduction", formatCell(entry.advanceDeduction)],
+    [{ content: "TOTAL DEDUCTIONS", styles: { halign: "right", fontStyle: "bold" } }, formatCell(totalDeductionDisplay)],
     ["Balance Advance (Advance Mgmt/Balance)", money(balanceAdvance)],
   ];
 
@@ -440,7 +441,7 @@ function renderPayslip(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(compact ? 10 : 12);
   doc.text("NET SALARY", x + 6, y + (compact ? 6.5 : 8));
-  doc.text(money(netSalary), x + w - 6, y + (compact ? 6.5 : 8), { align: "right" });
+  doc.text(money(calculatedNet), x + w - 6, y + (compact ? 6.5 : 8), { align: "right" });
   doc.setTextColor(0, 0, 0);
   y += netH + 3;
 
@@ -448,7 +449,7 @@ function renderPayslip(
   doc.setFont("helvetica", "italic");
   doc.setFontSize(compact ? 7.5 : 8.5);
   doc.setTextColor(80, 80, 80);
-  const wrapped = doc.splitTextToSize(`In words: ${numberToIndianWords(netSalary)}`, w - 8);
+  const wrapped = doc.splitTextToSize(`In words: ${numberToIndianWords(calculatedNet)}`, w - 8);
   doc.text(wrapped, x + 4, y + 3);
   y += wrapped.length * (compact ? 3.8 : 4.4) + 3;
   doc.setFont("helvetica", "normal");
