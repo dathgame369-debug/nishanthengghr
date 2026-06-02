@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { Employee, Advance, PayrollEntry, Department, Role } from '@/types/hr';
 import { supabase } from '@/integrations/supabase/client';
 import type { Session } from '@supabase/supabase-js';
+import { hashPassword } from '@/utils/crypto';
 
 type Setter<T> = React.Dispatch<React.SetStateAction<T[]>>;
 
@@ -12,6 +13,7 @@ interface HRContextType {
   login: (username: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   signUp: (username: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   logout: () => Promise<void>;
+  updateCredentials: (newUsername: string, newPassword?: string) => Promise<{ ok: boolean; error?: string }>;
   employees: Employee[];
   setEmployees: Setter<Employee>;
   advances: Advance[];
@@ -207,11 +209,12 @@ export function HRProvider({ children }: { children: React.ReactNode }) {
   const setRoles = useCallback(makeSetter<Role>('roles', setRolesState, roleToRow, () => rolRef.current), []);
 
   const login = useCallback(async (username: string, password: string) => {
+    const hashedPassword = await hashPassword(password);
     const { data, error } = await supabase
       .from('login_credentials')
       .select('username')
       .eq('username', username)
-      .eq('password', password)
+      .eq('password', hashedPassword)
       .maybeSingle();
 
     if (error) {
@@ -228,15 +231,41 @@ export function HRProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signUp = useCallback(async (username: string, password: string) => {
+    const hashedPassword = await hashPassword(password);
     const { error } = await supabase
       .from('login_credentials')
-      .insert({ username, password });
+      .insert({ username, password: hashedPassword });
 
     if (error) {
       return { ok: false, error: error.message };
     }
     return { ok: true };
   }, []);
+
+  const updateCredentials = useCallback(async (newUsername: string, newPassword?: string) => {
+    if (!session) return { ok: false, error: 'Not logged in' };
+    const currentUsername = session.user.email;
+    
+    const updateData: any = { username: newUsername };
+    if (newPassword) {
+      updateData.password = await hashPassword(newPassword);
+    }
+
+    const { error } = await supabase
+      .from('login_credentials')
+      .update(updateData)
+      .eq('username', currentUsername);
+
+    if (error) {
+      return { ok: false, error: error.message };
+    }
+
+    // Update local session
+    const dummySession = { user: { email: newUsername } } as unknown as Session;
+    setSession(dummySession);
+    localStorage.setItem('hr_session', JSON.stringify(dummySession));
+    return { ok: true };
+  }, [session]);
 
   const logout = useCallback(async () => {
     setSession(null);
@@ -247,7 +276,7 @@ export function HRProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <HRContext.Provider value={{
-      isLoggedIn, loading, session, login, signUp, logout,
+      isLoggedIn, loading, session, login, signUp, logout, updateCredentials,
       employees, setEmployees, advances, setAdvances, payroll, setPayroll,
       departments, setDepartments, roles, setRoles,
     }}>
