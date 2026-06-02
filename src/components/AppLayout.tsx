@@ -13,7 +13,7 @@ export default function AppLayout() {
     <div className="flex min-h-screen bg-background">
       <AppSidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
 
-      {/* Mobile top bar */}
+      {/** Mobile top bar **/}
       <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-card border-b border-border z-20 flex items-center px-4 gap-3">
         <button
           onClick={() => setMobileOpen(true)}
