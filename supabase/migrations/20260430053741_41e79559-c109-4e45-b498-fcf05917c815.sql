@@ -96,11 +96,6 @@ CREATE POLICY "auth write advances" ON public.advances FOR INSERT TO authenticat
 CREATE POLICY "auth update advances" ON public.advances FOR UPDATE TO authenticated USING (true);
 CREATE POLICY "auth delete advances" ON public.advances FOR DELETE TO authenticated USING (true);
 
-CREATE POLICY "auth read payroll" ON public.payroll FOR SELECT TO authenticated USING (true);
-CREATE POLICY "auth write payroll" ON public.payroll FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "auth update payroll" ON public.payroll FOR UPDATE TO authenticated USING (true);
-CREATE POLICY "auth delete payroll" ON public.payroll FOR DELETE TO authenticated USING (true);
-
 -- Seed default departments
 INSERT INTO public.departments (id, name, status) VALUES
   ('DEPT001', 'Production', 'Active'),
