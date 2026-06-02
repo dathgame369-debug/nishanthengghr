@@ -141,7 +141,8 @@ function renderPayslipMini(
   pair(x + 2, "Dept", emp?.department || "-");
   pair(x + w / 2, "Desig", emp?.designation || "-");
   iy += lh;
-  pair(x + 2, "Leaves", String(entry.noOfLeaves || 0));
+  pair(x + 2, "Present", String(entry.presentDays || 0));
+  pair(x + w / 2, "Leaves", String(entry.noOfLeaves || 0));
 
   const tableTop = iy + 3;
   const halfW = (w - 6) / 2;
@@ -338,7 +339,8 @@ function renderPayslip(
   drawPair(colA, "Date of Join", emp?.dateOfJoining || "-");
   drawPair(colB, "Pay Date", entry.date);
   iy += lh;
-  drawPair(colA, "No. of Leaves", String(entry.noOfLeaves || 0));
+  drawPair(colA, "Present Days", String(entry.presentDays || 0));
+  drawPair(colB, "No. of Leaves", String(entry.noOfLeaves || 0));
 
   y += infoH + (compact ? 2 : 4);
   doc.setDrawColor(200);
