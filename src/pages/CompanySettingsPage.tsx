@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Building2, Upload, Save, Trash2, ListChecks } from 'lucide-react';
+import { Building2, Upload, Save, Trash2, ListChecks, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useCompanyInfo, usePayslipComponents } from '@/hooks/useCompanySettings';
 import { PayslipComponents } from '@/utils/companySettings';
+import { useHR } from '@/context/HRContext';
 
 const EARNINGS: { key: keyof PayslipComponents; label: string }[] = [
   { key: 'hra', label: 'HRA' },
@@ -30,6 +31,9 @@ export default function CompanySettingsPage() {
   const [comp, setComp] = useState<PayslipComponents>(components);
   const fileRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { session, updateCredentials } = useHR();
+
+  const [accForm, setAccForm] = useState({ username: session?.user?.email || '', password: '', confirm: '' });
 
   const handleLogoUpload = (file: File) => {
     if (file.size > 1024 * 1024) {
@@ -47,8 +51,21 @@ export default function CompanySettingsPage() {
     toast({ title: 'Saved', description: 'Company settings updated' });
   };
 
+  const saveAccount = async () => {
+    if (!accForm.username.trim()) { toast({ title: 'Error', description: 'Username required', variant: 'destructive' }); return; }
+    if (accForm.password && accForm.password !== accForm.confirm) { toast({ title: 'Error', description: 'Passwords do not match', variant: 'destructive' }); return; }
+    
+    const { ok, error } = await updateCredentials(accForm.username.trim(), accForm.password || undefined);
+    if (ok) {
+      toast({ title: 'Success', description: 'Account credentials updated successfully' });
+      setAccForm(prev => ({ ...prev, password: '', confirm: '' }));
+    } else {
+      toast({ title: 'Error', description: error || 'Failed to update credentials', variant: 'destructive' });
+    }
+  };
+
   return (
-    <div className="animate-fade-in max-w-5xl">
+    <div className="animate-fade-in w-full">
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
           <Building2 className="w-5 h-5 text-primary-foreground" />
@@ -59,7 +76,7 @@ export default function CompanySettingsPage() {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid lg:grid-cols-3 gap-6">
         {/* Company Profile */}
         <div className="bg-card border border-border rounded-xl p-6 card-shadow space-y-4">
           <h2 className="text-lg font-semibold text-foreground">Company Profile</h2>
@@ -145,6 +162,29 @@ export default function CompanySettingsPage() {
                 ))}
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Account Security */}
+        <div className="bg-card border border-border rounded-xl p-6 card-shadow h-full flex flex-col">
+          <div className="flex items-center gap-2 mb-4">
+            <Lock className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-semibold text-foreground">Account Security</h2>
+          </div>
+          <div className="space-y-4 flex-1">
+            <div>
+              <label className="text-sm font-medium block mb-1">Username</label>
+              <Input value={accForm.username} onChange={e => setAccForm(f => ({ ...f, username: e.target.value }))} placeholder="Enter username" />
+            </div>
+            <div className="border-t border-border pt-4">
+              <label className="text-sm font-medium block mb-1">New Password (leave blank to keep current)</label>
+              <Input type="password" value={accForm.password} onChange={e => setAccForm(f => ({ ...f, password: e.target.value }))} placeholder="Enter new password" />
+            </div>
+            <div>
+              <label className="text-sm font-medium block mb-1">Confirm New Password</label>
+              <Input type="password" value={accForm.confirm} onChange={e => setAccForm(f => ({ ...f, confirm: e.target.value }))} placeholder="Confirm new password" />
+            </div>
+            <Button onClick={saveAccount} variant="outline" className="w-full mt-2">Update Credentials</Button>
           </div>
         </div>
       </div>

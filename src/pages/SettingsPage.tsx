@@ -10,11 +10,11 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { Settings, Plus, Pencil, Trash2, Search, Building2, Briefcase, HandCoins, Lock } from 'lucide-react';
+import { Settings, Plus, Pencil, Trash2, Search, Building2, Briefcase, HandCoins } from 'lucide-react';
 import { TablePagination } from '@/components/TablePagination';
 
 export default function SettingsPage() {
-  const { departments, setDepartments, roles, setRoles, session, updateCredentials } = useHR();
+  const { departments, setDepartments, roles, setRoles } = useHR();
   const { toast } = useToast();
 
   // Department state
@@ -37,9 +37,6 @@ export default function SettingsPage() {
   const [deptPageSize, setDeptPageSize] = useState(10);
   const [rolePage, setRolePage] = useState(1);
   const [rolePageSize, setRolePageSize] = useState(10);
-
-  // Account state
-  const [accForm, setAccForm] = useState({ username: session?.user?.email || '', password: '', confirm: '' });
 
   const filteredDepts = departments.filter(d => d.name.toLowerCase().includes(deptSearch.toLowerCase()));
   const filteredRoles = roles.filter(r => r.name.toLowerCase().includes(roleSearch.toLowerCase()));
@@ -128,19 +125,6 @@ export default function SettingsPage() {
     toast({ title: 'Deleted', description: 'Role removed' });
   };
 
-  const saveAccount = async () => {
-    if (!accForm.username.trim()) { toast({ title: 'Error', description: 'Username required', variant: 'destructive' }); return; }
-    if (accForm.password && accForm.password !== accForm.confirm) { toast({ title: 'Error', description: 'Passwords do not match', variant: 'destructive' }); return; }
-    
-    const { ok, error } = await updateCredentials(accForm.username.trim(), accForm.password || undefined);
-    if (ok) {
-      toast({ title: 'Success', description: 'Account credentials updated successfully' });
-      setAccForm(prev => ({ ...prev, password: '', confirm: '' }));
-    } else {
-      toast({ title: 'Error', description: error || 'Failed to update credentials', variant: 'destructive' });
-    }
-  };
-
   return (
     <div className="animate-fade-in">
       <div className="flex items-center gap-3 mb-6">
@@ -154,10 +138,9 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="departments" className="space-y-4">
-        <TabsList className="grid w-full max-w-2xl grid-cols-1 sm:grid-cols-3">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
           <TabsTrigger value="departments" className="flex items-center gap-2"><Building2 className="w-4 h-4" /> Departments</TabsTrigger>
           <TabsTrigger value="roles" className="flex items-center gap-2"><Briefcase className="w-4 h-4" /> Roles / Designations</TabsTrigger>
-          <TabsTrigger value="account" className="flex items-center gap-2"><Lock className="w-4 h-4" /> Account Security</TabsTrigger>
         </TabsList>
 
         {/* DEPARTMENTS TAB */}
@@ -262,28 +245,6 @@ export default function SettingsPage() {
               onPageChange={setRolePage}
               onPageSizeChange={setRolePageSize}
             />
-          </div>
-        </TabsContent>
-
-        {/* ACCOUNT TAB */}
-        <TabsContent value="account">
-          <div className="bg-card rounded-xl card-shadow border border-border p-6 max-w-md">
-            <h2 className="text-lg font-bold mb-4">Change Username & Password</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium block mb-1">Username</label>
-                <Input value={accForm.username} onChange={e => setAccForm(f => ({ ...f, username: e.target.value }))} placeholder="Enter username" />
-              </div>
-              <div className="border-t border-border pt-4">
-                <label className="text-sm font-medium block mb-1">New Password (leave blank to keep current)</label>
-                <Input type="password" value={accForm.password} onChange={e => setAccForm(f => ({ ...f, password: e.target.value }))} placeholder="Enter new password" />
-              </div>
-              <div>
-                <label className="text-sm font-medium block mb-1">Confirm New Password</label>
-                <Input type="password" value={accForm.confirm} onChange={e => setAccForm(f => ({ ...f, confirm: e.target.value }))} placeholder="Confirm new password" />
-              </div>
-              <Button onClick={saveAccount} className="w-full mt-2">Save Credentials</Button>
-            </div>
           </div>
         </TabsContent>
       </Tabs>
