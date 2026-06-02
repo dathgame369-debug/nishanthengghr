@@ -14,13 +14,12 @@ export default function PayslipTemplate({ entry, compact = false }: PayslipProps
   const [company] = useCompanyInfo();
   const emp = employees.find((e) => e.id === entry.employeeId);
   const adv = advances.find((a) => a.employeeId === entry.employeeId);
-  const { earnings, deductions, grossSalary, totalDeductions, netSalary } = buildPayslipBreakdown(
+  const { netSalary } = buildPayslipBreakdown(
     entry,
     adv,
     undefined,
     emp,
   );
-  const remainingAdvance = adv ? Math.max(0, adv.remainingBalance || 0) : 0;
 
   const text = compact ? "text-[10px]" : "text-xs";
   const headText = compact ? "text-sm" : "text-lg";
@@ -50,39 +49,71 @@ export default function PayslipTemplate({ entry, compact = false }: PayslipProps
         <Info label="Designation" value={emp?.designation || "—"} />
         <Info label="Date of Joining" value={emp?.dateOfJoining || "—"} />
         <Info label="Pay Date" value={entry.date} />
-        <Info label="Present Days" value={String(entry.presentDays || 0)} />
-        <Info label="No. of Leaves" value={String(entry.noOfLeaves || 0)} />
       </div>
 
-      {/* Earnings / Deductions */}
-      <div className="grid grid-cols-2 gap-4 mb-3">
-        <div>
-          <h3 className={`${text} font-semibold text-foreground mb-1 uppercase tracking-wider`}>Earnings</h3>
-          <table className={`w-full ${text}`}>
-            <tbody>
-              {earnings.map((r) => (
-                <Row key={r.label} label={r.label} value={formatCurrency(r.amount)} compact={compact} />
-              ))}
-              <Row label="Gross Salary" value={formatCurrency(grossSalary)} compact={compact} bold />
-            </tbody>
-          </table>
-        </div>
-        <div>
-          <h3 className={`${text} font-semibold text-foreground mb-1 uppercase tracking-wider`}>Deductions</h3>
-          <table className={`w-full ${text}`}>
-            <tbody>
-              {deductions.map((r) => (
-                <Row key={r.label} label={r.label} value={formatCurrency(r.amount)} compact={compact} />
-              ))}
-              {adv && (
-                <>
-                  <Row label="Remaining Advance" value={formatCurrency(remainingAdvance)} compact={compact} />
-                </>
-              )}
-              <Row label="Total Deductions" value={formatCurrency(totalDeductions)} compact={compact} bold />
-            </tbody>
-          </table>
-        </div>
+      {/* Earnings Section */}
+      <div className="border border-border rounded-lg overflow-hidden mb-3">
+        <table className={`w-full ${text}`}>
+          <thead>
+            <tr className="bg-[#1e3a5f] text-white">
+              <th className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-left font-semibold tracking-wide`} colSpan={2}>EARNINGS</th>
+              <th className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-left font-semibold tracking-wide border-l border-white/20`} colSpan={2}>AMOUNT</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              ['Monthly Salary', entry.monthlySalary],
+              ['Present Days', entry.presentDays, 'Present Amount', entry.presentAmount],
+              ['Holidays', entry.holidays, 'Holiday Amount', entry.holidayAmount],
+              ['No. of Leaves', entry.noOfLeaves || 0],
+              ['OT Hours', entry.otHours, 'OT Amount', entry.otAmount],
+              ['Welfare', entry.welfareAmount],
+              ['Bonus', entry.bonus],
+            ].map((row, i) => (
+              <tr key={i} className="border-b border-border last:border-0">
+                <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-muted-foreground`} colSpan={1}>{row[0]}</td>
+                <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right font-mono`}>{typeof row[1] === 'number' && ((row[0] as string).includes('Days') || (row[0] as string).includes('Hours') || (row[0] as string).includes('Leaves')) ? row[1] : formatCurrency(row[1] as number)}</td>
+                {row.length > 2 ? (
+                  <>
+                    <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-muted-foreground border-l border-border`}>{row[2]}</td>
+                    <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right font-mono`}>{formatCurrency(row[3] as number)}</td>
+                  </>
+                ) : (
+                  <>
+                    <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} border-l border-border`}></td>
+                    <td className={`${compact ? "px-2 py-1" : "px-3 py-2"}`}></td>
+                  </>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Deductions Section */}
+      <div className="border border-border rounded-lg overflow-hidden mb-3">
+        <table className={`w-full ${text}`}>
+          <thead>
+            <tr className="bg-[#7a2323] text-white">
+              <th className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-left font-semibold tracking-wide`}>DEDUCTIONS</th>
+              <th className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right font-semibold tracking-wide`}>AMOUNT</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-b border-border">
+              <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-muted-foreground`}>Advance Deduction</td>
+              <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right font-mono`}>{formatCurrency(entry.advanceDeduction)}</td>
+            </tr>
+            <tr className="border-b border-border last:border-0">
+              <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-muted-foreground`}>
+                Balance Advance <span className="text-[9px] opacity-60">(Advance Mgmt/Balance)</span>
+              </td>
+              <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right font-mono`}>
+                {formatCurrency(adv ? Math.max(0, adv.remainingBalance || 0) : 0)}
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       {/* Summary */}
@@ -121,12 +152,3 @@ function Info({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Row({ label, value, compact, bold }: { label: string; value: string; compact: boolean; bold?: boolean }) {
-  const py = compact ? "py-1" : "py-1.5";
-  return (
-    <tr className={bold ? "border-t border-foreground/15" : ""}>
-      <td className={`${py} ${bold ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{label}</td>
-      <td className={`${py} text-right font-mono ${bold ? "font-bold" : "font-medium"}`}>{value}</td>
-    </tr>
-  );
-}

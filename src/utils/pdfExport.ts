@@ -88,13 +88,12 @@ function renderPayslipMini(
   h: number,
   adv?: Advance,
 ) {
-  const { earnings, deductions, grossSalary, totalDeductions, netSalary } = buildPayslipBreakdown(
+  const { netSalary } = buildPayslipBreakdown(
     entry,
     adv,
     undefined,
     emp,
   );
-  const remainingAdvance = adv ? Math.max(0, adv.remainingBalance || 0) : 0;
   const company = getCompanyInfo();
   const logo = company.logoDataUrl || logoBase64;
 
@@ -145,48 +144,62 @@ function renderPayslipMini(
   pair(x + w / 2, "Leaves", String(entry.noOfLeaves || 0));
 
   const tableTop = iy + 3;
-  const halfW = (w - 6) / 2;
+
+  const earningsMiniRows = [
+    ["Monthly Salary", money(entry.monthlySalary), "", ""],
+    ["Present Days", entry.presentDays, "Present Amt", money(entry.presentAmount)],
+    ["Holidays", entry.holidays, "Holiday Amt", money(entry.holidayAmount)],
+    ["No. of Leaves", entry.noOfLeaves || 0, "", ""],
+    ["OT Hours", entry.otHours, "OT Amt", money(entry.otAmount)],
+    ["Welfare", money(entry.welfareAmount), "", ""],
+    ["Bonus", money(entry.bonus), "", ""],
+  ];
 
   autoTable(doc, {
     startY: tableTop,
-    head: [["EARNINGS", "AMT"]],
-    body: [
-      ...earnings.map((r) => [r.label, money(r.amount)]),
-      [
-        { content: "Gross", styles: { fontStyle: "bold", fillColor: [240, 244, 250] } },
-        { content: money(grossSalary), styles: { fontStyle: "bold", halign: "right", fillColor: [240, 244, 250] } },
-      ],
-    ],
+    head: [[
+      { content: "EARNINGS", colSpan: 2, styles: { halign: "left" } },
+      { content: "AMT", colSpan: 2, styles: { halign: "left" } },
+    ]],
+    body: earningsMiniRows,
     theme: "grid",
-    styles: { fontSize: 6, cellPadding: 1, lineColor: [200, 200, 200] },
-    headStyles: { fillColor: [30, 58, 95], textColor: 255, fontSize: 6, halign: "left" },
-    columnStyles: { 1: { halign: "right" } },
+    styles: { fontSize: 5.5, cellPadding: 1, lineColor: [200, 200, 200] },
+    headStyles: { fillColor: [30, 58, 95], textColor: 255, fontSize: 5.5 },
+    columnStyles: {
+      0: { textColor: [80, 80, 80] },
+      1: { halign: "right", fontStyle: "bold" },
+      2: { textColor: [80, 80, 80] },
+      3: { halign: "right", fontStyle: "bold" },
+    },
     margin: { left: x + 2 },
-    tableWidth: halfW,
+    tableWidth: w - 4,
   });
-  const earnEndY = (doc as any).lastAutoTable.finalY;
+
+  const deductionMiniTop = (doc as any).lastAutoTable.finalY + 1;
+  const miniBalanceAdv = adv ? Math.max(0, adv.remainingBalance || 0) : 0;
 
   autoTable(doc, {
-    startY: tableTop,
-    head: [["DEDUCTIONS", "AMT"]],
+    startY: deductionMiniTop,
+    head: [[
+      { content: "DEDUCTIONS", styles: { halign: "left" } },
+      { content: "AMT", styles: { halign: "right" } },
+    ]],
     body: [
-      ...deductions.map((r) => [r.label, money(r.amount)]),
-      ...(adv ? [["Remaining Advance", money(remainingAdvance)]] : []),
-      [
-        { content: "Total", styles: { fontStyle: "bold", fillColor: [250, 240, 240] } },
-        { content: money(totalDeductions), styles: { fontStyle: "bold", halign: "right", fillColor: [250, 240, 240] } },
-      ],
+      ["Adv Ded.", money(entry.advanceDeduction)],
+      ["Balance Advance", money(miniBalanceAdv)],
     ],
     theme: "grid",
-    styles: { fontSize: 6, cellPadding: 1, lineColor: [200, 200, 200] },
-    headStyles: { fillColor: [120, 35, 35], textColor: 255, fontSize: 6, halign: "left" },
-    columnStyles: { 1: { halign: "right" } },
-    margin: { left: x + 4 + halfW },
-    tableWidth: halfW,
+    styles: { fontSize: 5.5, cellPadding: 1, lineColor: [200, 200, 200] },
+    headStyles: { fillColor: [120, 35, 35], textColor: 255, fontSize: 5.5 },
+    columnStyles: {
+      0: { textColor: [80, 80, 80] },
+      1: { halign: "right", fontStyle: "bold" },
+    },
+    margin: { left: x + 2 },
+    tableWidth: w - 4,
   });
-  const dedEndY = (doc as any).lastAutoTable.finalY;
 
-  const ny = Math.max(earnEndY, dedEndY) + 2;
+  const ny = (doc as any).lastAutoTable.finalY + 2;
   const netH = 8;
   doc.setFillColor(30, 58, 95);
   doc.rect(x + 2, ny, w - 4, netH, "F");
@@ -268,13 +281,12 @@ function renderPayslip(
   const w = 180;
   let y = startY;
 
-  const { earnings, deductions, grossSalary, totalDeductions, netSalary } = buildPayslipBreakdown(
+  const { netSalary } = buildPayslipBreakdown(
     entry,
     adv,
     undefined,
     emp,
   );
-  const remainingAdvance = adv ? Math.max(0, adv.remainingBalance || 0) : 0;
   const company = getCompanyInfo();
   const logo = company.logoDataUrl || logoBase64;
 
@@ -348,49 +360,77 @@ function renderPayslip(
   doc.line(x, y, x + w, y);
 
   const tableTop = y + 3;
-  const halfW = (w - 6) / 2;
+
+  const formatCell = (val: number | string, isCurrency = true) => {
+    if (typeof val === 'number') {
+      return isCurrency ? money(val) : String(val);
+    }
+    return val;
+  };
+
+  // EARNINGS table
+  const earningsRows = [
+    ["Monthly Salary", formatCell(entry.monthlySalary), "", ""],
+    ["Present Days", formatCell(entry.presentDays, false), "Present Amount", formatCell(entry.presentAmount)],
+    ["Holidays", formatCell(entry.holidays, false), "Holiday Amount", formatCell(entry.holidayAmount)],
+    ["No. of Leaves", formatCell(entry.noOfLeaves || 0, false), "", ""],
+    ["OT Hours", formatCell(entry.otHours, false), "OT Amount", formatCell(entry.otAmount)],
+    ["Welfare", formatCell(entry.welfareAmount), "", ""],
+    ["Bonus", formatCell(entry.bonus), "", ""],
+  ];
 
   autoTable(doc, {
     startY: tableTop,
-    head: [["EARNINGS", "AMOUNT"]],
-    body: [
-      ...earnings.map((r) => [r.label, money(r.amount)]),
+    head: [
       [
-        { content: "Gross Salary", styles: { fontStyle: "bold", fillColor: [240, 244, 250] } },
-        { content: money(grossSalary), styles: { fontStyle: "bold", halign: "right", fillColor: [240, 244, 250] } },
-      ],
+        { content: "EARNINGS", colSpan: 2, styles: { halign: "left" } },
+        { content: "AMOUNT", colSpan: 2, styles: { halign: "left" } },
+      ]
     ],
+    body: earningsRows,
     theme: "grid",
     styles: { fontSize: compact ? 7.5 : 8.5, cellPadding: compact ? 1.5 : 2, lineColor: [200, 200, 200] },
-    headStyles: { fillColor: [30, 58, 95], textColor: 255, fontSize: compact ? 7.5 : 8.5, halign: "left" },
-    columnStyles: { 1: { halign: "right" } },
+    headStyles: { fillColor: [30, 58, 95], textColor: 255, fontSize: compact ? 7.5 : 8.5 },
+    columnStyles: {
+      0: { textColor: [80, 80, 80] },
+      1: { halign: "right", fontStyle: "bold" },
+      2: { textColor: [80, 80, 80] },
+      3: { halign: "right", fontStyle: "bold" },
+    },
     margin: { left: x + 2 },
-    tableWidth: halfW,
+    tableWidth: w - 4,
   });
 
-  const earnEndY = (doc as any).lastAutoTable.finalY;
+  y = (doc as any).lastAutoTable.finalY + 3;
+
+  // DEDUCTIONS table
+  const balanceAdvance = adv ? Math.max(0, adv.remainingBalance || 0) : 0;
+  const deductionsRows = [
+    ["Advance Deduction", formatCell(entry.advanceDeduction)],
+    ["Balance Advance (Advance Mgmt/Balance)", money(balanceAdvance)],
+  ];
 
   autoTable(doc, {
-    startY: tableTop,
-    head: [["DEDUCTIONS", "AMOUNT"]],
-    body: [
-      ...deductions.map((r) => [r.label, money(r.amount)]),
-      ...(adv ? [["Remaining Advance", money(remainingAdvance)]] : []),
+    startY: y,
+    head: [
       [
-        { content: "Total Deductions", styles: { fontStyle: "bold", fillColor: [250, 240, 240] } },
-        { content: money(totalDeductions), styles: { fontStyle: "bold", halign: "right", fillColor: [250, 240, 240] } },
-      ],
+        { content: "DEDUCTIONS", styles: { halign: "left" } },
+        { content: "AMOUNT", styles: { halign: "right" } },
+      ]
     ],
+    body: deductionsRows,
     theme: "grid",
     styles: { fontSize: compact ? 7.5 : 8.5, cellPadding: compact ? 1.5 : 2, lineColor: [200, 200, 200] },
-    headStyles: { fillColor: [120, 35, 35], textColor: 255, fontSize: compact ? 7.5 : 8.5, halign: "left" },
-    columnStyles: { 1: { halign: "right" } },
-    margin: { left: x + 4 + halfW },
-    tableWidth: halfW,
+    headStyles: { fillColor: [120, 35, 35], textColor: 255, fontSize: compact ? 7.5 : 8.5 },
+    columnStyles: {
+      0: { textColor: [80, 80, 80] },
+      1: { halign: "right", fontStyle: "bold" },
+    },
+    margin: { left: x + 2 },
+    tableWidth: w - 4,
   });
 
-  const dedEndY = (doc as any).lastAutoTable.finalY;
-  y = Math.max(earnEndY, dedEndY) + 4;
+  y = (doc as any).lastAutoTable.finalY + 4;
 
   // Net Salary band
   const netH = compact ? 10 : 12;

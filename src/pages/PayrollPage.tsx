@@ -511,7 +511,7 @@ export default function PayrollPage() {
                     ].map((row, i) => (
                       <tr key={i} className="border-b border-border last:border-0">
                         <td className="px-3 py-2 text-muted-foreground">{row[0]}</td>
-                        <td className="px-3 py-2 text-right font-mono">{typeof row[1] === 'number' && (row[0] as string).includes('Days') || (row[0] as string).includes('Hours') ? row[1] : formatCurrency(row[1] as number)}</td>
+                        <td className="px-3 py-2 text-right font-mono">{typeof row[1] === 'number' && ((row[0] as string).includes('Days') || (row[0] as string).includes('Hours') || (row[0] as string).includes('Leaves')) ? row[1] : formatCurrency(row[1] as number)}</td>
                         {row.length > 2 && (
                           <>
                             <td className="px-3 py-2 text-muted-foreground border-l border-border">{row[2]}</td>
