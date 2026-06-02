@@ -69,23 +69,41 @@ export default function PayslipTemplate({ entry, compact = false }: PayslipProps
               ['OT Hours', entry.otHours, 'OT Amount', entry.otAmount],
               ['Welfare', entry.welfareAmount],
               ['Bonus', entry.bonus],
-            ].map((row, i) => (
-              <tr key={i} className="border-b border-border last:border-0">
-                <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-muted-foreground`} colSpan={1}>{row[0]}</td>
-                <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right font-mono`}>{typeof row[1] === 'number' && ((row[0] as string).includes('Days') || (row[0] as string).includes('Hours') || (row[0] as string).includes('Leaves')) ? row[1] : formatCurrency(row[1] as number)}</td>
-                {row.length > 2 ? (
-                  <>
-                    <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-muted-foreground border-l border-border`}>{row[2]}</td>
-                    <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right font-mono`}>{formatCurrency(row[3] as number)}</td>
-                  </>
-                ) : (
-                  <>
-                    <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} border-l border-border`}></td>
-                    <td className={`${compact ? "px-2 py-1" : "px-3 py-2"}`}></td>
-                  </>
-                )}
-              </tr>
-            ))}
+            ].map((row, i) => {
+              const label = row[0] as string;
+
+              // Identifies count columns that should be displayed as pure integers
+              const isCountColumn =
+                label.includes('Days') ||
+                label.includes('Hours') ||
+                label.includes('Leaves') ||
+                label === 'Holidays';
+
+              return (
+                <tr key={i} className="border-b border-border last:border-0">
+                  <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-muted-foreground`} colSpan={1}>{row[0]}</td>
+                  <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right font-mono`}>
+                    {typeof row[1] === 'number' && isCountColumn
+                      ? Math.round(row[1])
+                      : formatCurrency(row[1] as number)
+                    }
+                  </td>
+                  {row.length > 2 ? (
+                    <>
+                      <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-muted-foreground border-l border-border`}>{row[2]}</td>
+                      <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right font-mono`}>
+                        {formatCurrency(row[3] as number)}
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} border-l border-border`}></td>
+                      <td className={`${compact ? "px-2 py-1" : "px-3 py-2"}`}></td>
+                    </>
+                  )}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -151,4 +169,3 @@ function Info({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-
