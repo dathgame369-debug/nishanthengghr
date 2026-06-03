@@ -155,7 +155,10 @@ export default function EmployeeListPage() {
             <div className="space-y-4">
               <div><label className="text-sm font-medium block mb-1">Employee ID</label><Input value={editEmp.id} disabled className="bg-muted" /></div>
               <div><label className="text-sm font-medium block mb-1">Name</label><Input value={editEmp.name} onChange={e => setEditEmp({ ...editEmp, name: e.target.value })} /></div>
-              <div><label className="text-sm font-medium block mb-1">Fixed Salary (₹)</label><Input type="number" value={editEmp.fixedSalary} onChange={e => setEditEmp({ ...editEmp, fixedSalary: parseFloat(e.target.value) || 0 })} /></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="text-sm font-medium block mb-1">Fixed Salary (₹)</label><Input type="number" value={editEmp.fixedSalary} onChange={e => setEditEmp({ ...editEmp, fixedSalary: parseFloat(e.target.value) || 0 })} /></div>
+                <div><label className="text-sm font-medium block mb-1">Date of Joining</label><Input type="date" value={editEmp.dateOfJoining} onChange={e => setEditEmp({ ...editEmp, dateOfJoining: e.target.value })} /></div>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="text-sm font-medium block mb-1">Department</label>
                   <Select value={editEmp.department} onValueChange={v => setEditEmp({ ...editEmp, department: v })}>
