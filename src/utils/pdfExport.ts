@@ -90,8 +90,8 @@ function renderPayslipMini(
 ) {
   const calcLeaves = entry.noOfLeaves || 0;
   const leaveAmt = calcLeaves * (entry.monthlySalary / 26);
-  const totalEarning = entry.presentAmount + entry.holidayAmount + (entry.otAmount || 0) + (entry.welfareAmount || 0) + (entry.bonus || 0) + leaveAmt;
-  const totalDeductionDisplay = leaveAmt + (entry.advanceDeduction || 0);
+  const totalEarning = entry.presentAmount + entry.holidayAmount + (entry.otAmount || 0) + (entry.welfareAmount || 0) + (entry.bonus || 0);
+  const totalDeductionDisplay = entry.advanceDeduction || 0;
   const calculatedNet = entry.netPayable;
   const company = getCompanyInfo();
   const logo = company.logoDataUrl || logoBase64;
@@ -184,7 +184,7 @@ function renderPayslipMini(
       { content: "AMT", styles: { halign: "right" } },
     ]],
     body: [
-      ["Leave Ded.", money(leaveAmt)],
+
       ["Adv Ded.", money(entry.advanceDeduction)],
       [{ content: "TOTAL DEDS", styles: { halign: "right", fontStyle: "bold" } }, money(totalDeductionDisplay)],
       ["Balance Advance", money(miniBalanceAdv)],
@@ -284,8 +284,8 @@ function renderPayslip(
 
   const calcLeaves = entry.noOfLeaves || 0;
   const leaveAmt = calcLeaves * (entry.monthlySalary / 26);
-  const totalEarning = entry.presentAmount + entry.holidayAmount + (entry.otAmount || 0) + (entry.welfareAmount || 0) + (entry.bonus || 0) + leaveAmt;
-  const totalDeductionDisplay = leaveAmt + (entry.advanceDeduction || 0);
+  const totalEarning = entry.presentAmount + entry.holidayAmount + (entry.otAmount || 0) + (entry.welfareAmount || 0) + (entry.bonus || 0);
+  const totalDeductionDisplay = entry.advanceDeduction || 0;
   const calculatedNet = entry.netPayable;
   const company = getCompanyInfo();
   const logo = company.logoDataUrl || logoBase64;
@@ -405,7 +405,7 @@ function renderPayslip(
   // DEDUCTIONS table
   const balanceAdvance = adv ? Math.max(0, adv.remainingBalance || 0) : 0;
   const deductionsRows = [
-    [`Leave Deduction (${calcLeaves} Days)`, formatCell(leaveAmt)],
+
     ["Advance Deduction", formatCell(entry.advanceDeduction)],
     [{ content: "TOTAL DEDUCTIONS", styles: { halign: "right", fontStyle: "bold" } }, formatCell(totalDeductionDisplay)],
     ["Balance Advance (Advance Mgmt/Balance)", money(balanceAdvance)],
