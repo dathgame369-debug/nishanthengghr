@@ -120,7 +120,7 @@ export default function EmployeeListPage() {
                     {formatCurrency(Number(emp[f.emp] ?? 0))}
                   </TableCell>
                 ))}
-                <TableCell>{emp.dateOfJoining || '—'}</TableCell>
+                <TableCell>{emp.dateOfJoining ? emp.dateOfJoining.split('-').reverse().join('-') : '—'}</TableCell>
                 <TableCell>
                   <Badge variant={emp.status === 'Active' ? 'default' : 'secondary'}
                     className={emp.status === 'Active' ? 'bg-success text-success-foreground' : ''}>

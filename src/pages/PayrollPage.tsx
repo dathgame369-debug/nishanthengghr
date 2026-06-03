@@ -325,7 +325,7 @@ export default function PayrollPage() {
                     <TableCell>
                       <Badge variant="secondary" className="font-normal">{entry.month} {entry.year || currentYear}</Badge>
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{entry.date}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{entry.date ? entry.date.split('-').reverse().join('-') : ""}</TableCell>
                     <TableCell className="text-center">{entry.presentDays}</TableCell>
                     <TableCell className="text-center">{entry.holidays}</TableCell>
                     <TableCell className="text-center">{entry.noOfLeaves || 0}</TableCell>
@@ -403,7 +403,7 @@ export default function PayrollPage() {
               </Select>
             </div>
             <div>
-              <Label className="text-sm font-medium">Date</Label>
+              <Label className="text-sm font-medium">Payment Date</Label>
               <Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} className="mt-1.5" />
             </div>
 
@@ -494,8 +494,8 @@ export default function PayrollPage() {
                   <p className="font-semibold mt-0.5">{viewEntry.employeeId}</p>
                 </div>
                 <div className="bg-muted/40 rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground">Date</p>
-                  <p className="font-semibold mt-0.5">{viewEntry.date}</p>
+                  <p className="text-xs text-muted-foreground">Payment Date</p>
+                  <p className="font-semibold mt-0.5">{viewEntry.date ? viewEntry.date.split('-').reverse().join('-') : ""}</p>
                 </div>
               </div>
               <div className="border border-border rounded-lg overflow-hidden">

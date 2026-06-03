@@ -9,7 +9,6 @@ import { FileText, Download, FileSpreadsheet, Eye, RotateCcw, Files } from 'luci
 import PayslipTemplate from '@/components/PayslipTemplate';
 import {
   generatePayslipPDF,
-  generateMultiPayslipPDF,
   generateBulkPayslipPDF,
   exportPayslipsExcel,
 } from '@/utils/pdfExport';
@@ -28,7 +27,7 @@ export default function PayslipPage() {
   const [statuses, setStatuses] = useState<string[]>([]);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [bulkLayout, setBulkLayout] = useState<'full' | 'compact'>('full');
+  const [bulkLayout, setBulkLayout] = useState<'1' | '2' | '4' | '6'>('1');
   const [previewMode, setPreviewMode] = useState<'compact' | 'full'>('compact');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(6);
@@ -94,15 +93,8 @@ export default function PayslipPage() {
   const selectAllEmployees = () => setEmpIds(employees.map(e => e.id));
 
   const downloadPDF = () => {
-    if (filteredEntries.length === 1) {
-      generatePayslipPDF(filteredEntries[0], employees, advances);
-    } else {
-      generateMultiPayslipPDF(filteredEntries, employees, advances,
-        `Payslips_${months.join('-') || 'All'}_${years.join('-') || ''}.pdf`);
-    }
+    generateBulkPayslipPDF(filteredEntries, employees, bulkLayout, advances);
   };
-
-  const bulkCompact = () => generateBulkPayslipPDF(filteredEntries, employees, bulkLayout, advances);
 
   return (
     <div className="animate-fade-in">
@@ -155,18 +147,18 @@ export default function PayslipPage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 items-center pt-2 border-t border-border">
-          <Button variant="outline" size="sm" onClick={selectAllEmployees}>
+        <div className="flex overflow-x-auto no-scrollbar gap-2 items-center pt-2 border-t border-border pb-1">
+          <Button variant="outline" size="sm" onClick={selectAllEmployees} className="shrink-0">
             <Files className="w-4 h-4 mr-1.5" /> Select All Employees
           </Button>
-          <Button variant="outline" size="sm" onClick={resetFilters}>
+          <Button variant="outline" size="sm" onClick={resetFilters} className="shrink-0">
             <RotateCcw className="w-4 h-4 mr-1.5" /> Reset Filters
           </Button>
-          <span className="text-xs text-muted-foreground ml-2">
+          <span className="text-xs text-muted-foreground mx-2 shrink-0">
             {filteredEntries.length} payslip{filteredEntries.length === 1 ? '' : 's'} matched
           </span>
 
-          <div className="sm:ml-auto flex gap-2 flex-wrap">
+          <div className="flex-1 min-w-[1rem]"></div>
             <Select value={previewMode} onValueChange={v => setPreviewMode(v as 'compact' | 'full')}>
               <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -174,28 +166,26 @@ export default function PayslipPage() {
                 <SelectItem value="full">Full preview</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={bulkLayout} onValueChange={v => setBulkLayout(v as 'full' | 'compact')}>
+            <Select value={bulkLayout} onValueChange={v => setBulkLayout(v as '1' | '2' | '4' | '6')}>
               <SelectTrigger className="w-44 h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="full">Bulk: Full page</SelectItem>
-                <SelectItem value="compact">Bulk: 6 per page</SelectItem>
+                <SelectItem value="1">1 per page (Full)</SelectItem>
+                <SelectItem value="2">2 per page</SelectItem>
+                <SelectItem value="4">4 per page</SelectItem>
+                <SelectItem value="6">6 per page</SelectItem>
               </SelectContent>
             </Select>
             <Button
               variant="outline"
-              className="bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white border-emerald-600"
+              className="bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white border-emerald-600 shrink-0"
               disabled={!filteredEntries.length}
               onClick={() => exportPayslipsExcel(filteredEntries, employees)}
             >
               <FileSpreadsheet className="w-4 h-4 mr-2" /> Download Excel
             </Button>
-            <Button disabled={!filteredEntries.length} onClick={downloadPDF}>
+            <Button disabled={!filteredEntries.length} onClick={downloadPDF} className="shrink-0">
               <Download className="w-4 h-4 mr-2" /> Download PDF
             </Button>
-            <Button variant="secondary" disabled={!filteredEntries.length} onClick={bulkCompact}>
-              <Files className="w-4 h-4 mr-2" /> Bulk Generate
-            </Button>
-          </div>
         </div>
       </div>
 

@@ -47,8 +47,8 @@ export default function PayslipTemplate({ entry, compact = false }: PayslipProps
         <Info label="Name" value={entry.employeeName} />
         <Info label="Department" value={emp?.department || "—"} />
         <Info label="Designation" value={emp?.designation || "—"} />
-        <Info label="Date of Joining" value={emp?.dateOfJoining || "—"} />
-        <Info label="Pay Date" value={entry.date} />
+        <Info label="Date of Joining" value={emp?.dateOfJoining ? emp.dateOfJoining.split('-').reverse().join('-') : "—"} />
+        <Info label="Pay Date" value={entry.date ? entry.date.split('-').reverse().join('-') : ""} />
         <Info label="Present Days" value={String(entry.presentDays || 0)} />
         <Info label="No. of Leaves" value={String(calcLeaves)} />
       </div>

@@ -41,12 +41,12 @@ export function generateMultiPayslipPDF(
 export function generateBulkPayslipPDF(
   entries: PayrollEntry[],
   employees: Employee[],
-  layout: "full" | "compact",
+  layout: "1" | "2" | "4" | "6",
   advances: Advance[] = [],
 ) {
   const doc = new jsPDF("p", "mm", "a4");
 
-  if (layout === "full") {
+  if (layout === "1") {
     entries.forEach((entry, i) => {
       if (i > 0) doc.addPage();
       const emp = employees.find((e) => e.id === entry.employeeId);
@@ -59,14 +59,22 @@ export function generateBulkPayslipPDF(
     const gapY = 4;
     const pageW = 210;
     const pageH = 297;
-    const slipW = (pageW - margin * 2 - gapX) / 2;
-    const slipH = (pageH - margin * 2 - gapY * 2) / 3;
-    const perPage = 6;
+    
+    let cols = 2;
+    let rows = 3;
+    if (layout === "2") { cols = 1; rows = 2; }
+    else if (layout === "4") { cols = 2; rows = 2; }
+    else if (layout === "6") { cols = 2; rows = 3; }
+    
+    const slipW = (pageW - margin * 2 - gapX * (cols - 1)) / cols;
+    const slipH = (pageH - margin * 2 - gapY * (rows - 1)) / rows;
+    const perPage = cols * rows;
+
     entries.forEach((entry, i) => {
       const pos = i % perPage;
       if (i > 0 && pos === 0) doc.addPage();
-      const col = pos % 2;
-      const row = Math.floor(pos / 2);
+      const col = pos % cols;
+      const row = Math.floor(pos / cols);
       const x = margin + col * (slipW + gapX);
       const y = margin + row * (slipH + gapY);
       const emp = employees.find((e) => e.id === entry.employeeId);
@@ -100,27 +108,27 @@ function renderPayslipMini(
   doc.setLineWidth(0.3);
   doc.rect(x, y, w, h);
 
-  const headerH = 14;
+  const headerH = 11;
   doc.setFillColor(30, 58, 95);
   doc.rect(x, y, w, headerH, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
-  doc.text((company.name || "").toUpperCase(), x + w / 2, y + 5, { align: "center" });
+  doc.text((company.name || "").toUpperCase(), x + w / 2, y + 4, { align: "center" });
   try {
-    doc.addImage(logo, "PNG", x + 1.5, y + 2, 10, 10);
+    doc.addImage(logo, "PNG", x + 1.5, y + 1, 9, 9);
   } catch {}
   doc.setFont("helvetica", "normal");
   doc.setFontSize(5.5);
   const addrShort = (company.address || "").split("\n")[0].slice(0, 80);
-  doc.text(addrShort, x + w / 2, y + 8.5, { align: "center" });
+  doc.text(addrShort, x + w / 2, y + 7, { align: "center" });
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7);
-  doc.text(`PAYSLIP — ${entry.month.toUpperCase()} ${entry.year || ""}`, x + w / 2, y + 12, { align: "center" });
+  doc.text(`PAYSLIP — ${entry.month.toUpperCase()} ${entry.year || ""}`, x + w / 2, y + 10, { align: "center" });
   doc.setTextColor(0, 0, 0);
 
-  let iy = y + headerH + 4;
-  const lh = 3.8;
+  let iy = y + headerH + 2.5;
+  const lh = 3.2;
   doc.setFontSize(7);
   const pair = (lx: number, label: string, value: string) => {
     doc.setFont("helvetica", "normal");
@@ -132,7 +140,7 @@ function renderPayslipMini(
     doc.text(v, lx + 16, iy);
   };
   pair(x + 2, "ID", entry.employeeId);
-  pair(x + w / 2, "Date", entry.date);
+  pair(x + w / 2, "Date", entry.date ? entry.date.split('-').reverse().join('-') : "");
   iy += lh;
   pair(x + 2, "Name", entry.employeeName);
   iy += lh;
@@ -142,7 +150,7 @@ function renderPayslipMini(
   pair(x + 2, "Present", String(entry.presentDays || 0));
   pair(x + w / 2, "Leaves", String(calcLeaves));
 
-  const tableTop = iy + 3;
+  const tableTop = iy + 2;
 
   const earningsMiniRows = [
     ["Monthly Salary", money(entry.monthlySalary), "", ""],
@@ -162,7 +170,7 @@ function renderPayslipMini(
     ]],
     body: earningsMiniRows,
     theme: "grid",
-    styles: { fontSize: 5.5, cellPadding: 1, lineColor: [200, 200, 200] },
+    styles: { fontSize: 5.5, cellPadding: 0.6, lineColor: [200, 200, 200] },
     headStyles: { fillColor: [30, 58, 95], textColor: 255, fontSize: 5.5 },
     columnStyles: {
       0: { textColor: [80, 80, 80] },
@@ -190,7 +198,7 @@ function renderPayslipMini(
       ["Balance Advance", money(miniBalanceAdv)],
     ],
     theme: "grid",
-    styles: { fontSize: 5.5, cellPadding: 1, lineColor: [200, 200, 200] },
+    styles: { fontSize: 5.5, cellPadding: 0.6, lineColor: [200, 200, 200] },
     headStyles: { fillColor: [120, 35, 35], textColor: 255, fontSize: 5.5 },
     columnStyles: {
       0: { textColor: [80, 80, 80] },
@@ -200,15 +208,15 @@ function renderPayslipMini(
     tableWidth: w - 4,
   });
 
-  const ny = (doc as any).lastAutoTable.finalY + 2;
-  const netH = 8;
+  const ny = (doc as any).lastAutoTable.finalY + 1.5;
+  const netH = 6;
   doc.setFillColor(30, 58, 95);
   doc.rect(x + 2, ny, w - 4, netH, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
-  doc.text("NET SALARY", x + 5, ny + 5.2);
-  doc.text(money(calculatedNet), x + w - 5, ny + 5.2, { align: "right" });
+  doc.text("NET SALARY", x + 5, ny + 4);
+  doc.text(money(calculatedNet), x + w - 5, ny + 4, { align: "right" });
   doc.setTextColor(0, 0, 0);
 }
 
@@ -229,7 +237,7 @@ export function exportPayslipsExcel(entries: PayrollEntry[], employees: Employee
           Status: emp?.status || "",
           "Payroll Month": e.month,
           "Payroll Year": e.year || "",
-          "Pay Date": e.date,
+          "Pay Date": e.date ? e.date.split('-').reverse().join('-') : "",
           "Fixed Salary": e.monthlySalary,
           "Present Days": e.presentDays,
           Holidays: e.holidays,
@@ -348,8 +356,8 @@ function renderPayslip(
   drawPair(colA, "Department", emp?.department || "-");
   drawPair(colB, "Designation", emp?.designation || "-");
   iy += lh;
-  drawPair(colA, "Date of Join", emp?.dateOfJoining || "-");
-  drawPair(colB, "Pay Date", entry.date);
+  drawPair(colA, "Date of Join", emp?.dateOfJoining ? emp.dateOfJoining.split('-').reverse().join('-') : "-");
+  drawPair(colB, "Pay Date", entry.date ? entry.date.split('-').reverse().join('-') : "");
   iy += lh;
   drawPair(colA, "Present Days", String(entry.presentDays || 0));
   drawPair(colB, "No. of Leaves", String(calcLeaves));

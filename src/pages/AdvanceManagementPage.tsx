@@ -99,7 +99,7 @@ export default function AdvanceManagementPage() {
               <TableRow key={adv.id}>
                 <TableCell className="font-medium text-primary">{adv.employeeId}</TableCell>
                 <TableCell>{adv.employeeName}</TableCell>
-                <TableCell>{adv.advanceDate || '—'}</TableCell>
+                <TableCell>{adv.advanceDate ? adv.advanceDate.split('-').reverse().join('-') : '—'}</TableCell>
                 <TableCell className="text-right font-mono">{formatCurrency(adv.advanceAmount)}</TableCell>
                 <TableCell><Badge variant="outline">{adv.deductionType}</Badge></TableCell>
                 <TableCell className="text-right font-mono">{formatCurrency(adv.monthlyDeductionAmount)}</TableCell>
