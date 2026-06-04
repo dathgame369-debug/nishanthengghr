@@ -71,7 +71,7 @@ const advFromRow = (r: any): Advance => ({
 });
 const payToRow = (p: PayrollEntry) => ({
   id: p.id, employee_id: p.employeeId, employee_name: p.employeeName, date: p.date,
-  month: p.month, year: p.year, monthly_salary: p.monthlySalary,
+  month: p.month, year: p.year, mode_of_payment: p.modeOfPayment, monthly_salary: p.monthlySalary,
   present_days: p.presentDays, present_amount: p.presentAmount,
   holidays: p.holidays, holiday_amount: p.holidayAmount,
   ot_hours: p.otHours, ot_amount: p.otAmount, welfare_amount: p.welfareAmount,
@@ -80,7 +80,7 @@ const payToRow = (p: PayrollEntry) => ({
 });
 const payFromRow = (r: any): PayrollEntry => ({
   id: r.id, employeeId: r.employee_id, employeeName: r.employee_name,
-  date: r.date || '', month: r.month, year: r.year,
+  date: r.date || '', month: r.month, year: r.year, modeOfPayment: r.mode_of_payment || 'Bank Transfer',
   monthlySalary: Number(r.monthly_salary), presentDays: Number(r.present_days),
   presentAmount: Number(r.present_amount), holidays: Number(r.holidays),
   holidayAmount: Number(r.holiday_amount), otHours: Number(r.ot_hours),
@@ -217,11 +217,8 @@ export function HRProvider({ children }: { children: React.ReactNode }) {
       .eq('password', hashedPassword)
       .maybeSingle();
 
-    if (error) {
-      return { ok: false, error: error.message };
-    }
-    if (!data) {
-      return { ok: false, error: 'Invalid username or password' };
+    if (error || !data) {
+      return { ok: false, error: 'Wrong username or password' };
     }
 
     const dummySession = { user: { email: username } } as unknown as Session;

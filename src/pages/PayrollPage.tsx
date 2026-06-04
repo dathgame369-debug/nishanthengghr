@@ -26,6 +26,7 @@ interface PayrollFormData {
   advanceDeduction: number;
   bonus: number;
   noOfLeaves: number;
+  modeOfPayment: string;
 }
 
 const emptyForm = (): PayrollFormData => ({
@@ -40,6 +41,7 @@ const emptyForm = (): PayrollFormData => ({
   advanceDeduction: 0,
   bonus: 0,
   noOfLeaves: 0,
+  modeOfPayment: 'Bank Transfer',
 });
 
 export default function PayrollPage() {
@@ -111,6 +113,7 @@ export default function PayrollPage() {
       advanceDeduction: entry.advanceDeduction,
       bonus: entry.bonus,
       noOfLeaves: entry.noOfLeaves || 0,
+      modeOfPayment: entry.modeOfPayment || 'Bank Transfer',
     });
     setFormOpen(true);
   };
@@ -147,6 +150,7 @@ export default function PayrollPage() {
       date: form.date,
       month: form.month,
       year: form.year,
+      modeOfPayment: form.modeOfPayment,
       monthlySalary: form.monthlySalary,
       presentDays: form.presentDays,
       holidays: form.holidays,
@@ -307,6 +311,7 @@ export default function PayrollPage() {
                   <TableHead className="font-semibold">Employee</TableHead>
                   <TableHead className="font-semibold">Period</TableHead>
                   <TableHead className="font-semibold">Date</TableHead>
+                  <TableHead className="font-semibold">Mode</TableHead>
                   <TableHead className="text-center font-semibold">Present</TableHead>
                   <TableHead className="text-center font-semibold">Holidays</TableHead>
                   <TableHead className="text-center font-semibold">Leaves</TableHead>
@@ -326,6 +331,7 @@ export default function PayrollPage() {
                       <Badge variant="secondary" className="font-normal">{entry.month} {entry.year || currentYear}</Badge>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{entry.date ? entry.date.split('-').reverse().join('-') : ""}</TableCell>
+                    <TableCell><Badge variant="outline" className="font-normal">{entry.modeOfPayment || 'Bank Transfer'}</Badge></TableCell>
                     <TableCell className="text-center">{entry.presentDays}</TableCell>
                     <TableCell className="text-center">{entry.holidays}</TableCell>
                     <TableCell className="text-center">{entry.noOfLeaves || 0}</TableCell>
@@ -405,6 +411,17 @@ export default function PayrollPage() {
             <div>
               <Label className="text-sm font-medium">Payment Date</Label>
               <Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} className="mt-1.5" />
+            </div>
+            <div>
+              <Label className="text-sm font-medium">Mode of Payment</Label>
+              <Select value={form.modeOfPayment} onValueChange={v => setForm(f => ({ ...f, modeOfPayment: v }))}>
+                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                  <SelectItem value="Cash">Cash</SelectItem>
+                  <SelectItem value="Cheque">Cheque</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div>

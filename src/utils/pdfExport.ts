@@ -238,6 +238,7 @@ export function exportPayslipsExcel(entries: PayrollEntry[], employees: Employee
           "Payroll Month": e.month,
           "Payroll Year": e.year || "",
           "Pay Date": e.date ? e.date.split('-').reverse().join('-') : "",
+          "Mode of Payment": e.modeOfPayment || "Bank Transfer",
           "Fixed Salary": e.monthlySalary,
           "Present Days": e.presentDays,
           Holidays: e.holidays,

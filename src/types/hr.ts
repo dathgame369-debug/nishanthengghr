@@ -42,6 +42,7 @@ export interface PayrollEntry {
   date: string;
   month: string;
   year: number;
+  modeOfPayment: string;
   monthlySalary: number;
   presentDays: number;
   presentAmount: number;
