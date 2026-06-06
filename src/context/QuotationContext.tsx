@@ -26,11 +26,15 @@ const customerFromRow = (r: any): Customer => ({
   contactPerson: r.contact_person || '', phone: r.phone || '', email: r.email || '',
   status: (r.status as 'Active' | 'Inactive') || 'Active',
   numberPrefix: r.number_prefix || '',
+  state: r.state || '',
+  district: r.district || '',
+  pincode: r.pincode || '',
 });
 const customerToRow = (c: Customer) => ({
   id: c.id, name: c.name, address: c.address, gst_number: c.gstNumber,
   contact_person: c.contactPerson, phone: c.phone, email: c.email, status: c.status,
   number_prefix: c.numberPrefix || '',
+  state: c.state, district: c.district, pincode: c.pincode,
 });
 
 const quotationFromRow = (r: any): Quotation => ({

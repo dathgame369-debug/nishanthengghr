@@ -28,12 +28,12 @@ export default function AppLayout() {
           </div>
           <div className="leading-tight">
             <p className="text-sm font-bold text-foreground">Nishanth</p>
-            <p className="text-[10px] text-muted-foreground -mt-0.5">Engineering Works</p>
+            <p className="text-[10px] text-muted-foreground -mt-0.5">Engineering Portal</p>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 lg:ml-64 pt-16 lg:pt-0 p-4 sm:p-6 lg:p-8 overflow-auto w-full min-w-0">
+      <main className="flex-1 lg:ml-64 pt-16 lg:pt-8 p-4 sm:p-6 lg:p-8 overflow-auto w-full min-w-0">
         <Outlet />
       </main>
     </div>

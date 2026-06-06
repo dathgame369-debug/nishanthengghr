@@ -8,6 +8,9 @@ export interface Customer {
   email: string;
   status: 'Active' | 'Inactive';
   numberPrefix: string;
+  state?: string;
+  district?: string;
+  pincode?: string;
 }
 
 export interface QuotationSubLine {

@@ -14,7 +14,7 @@ import { TablePagination } from '@/components/TablePagination';
 
 const empty: Customer = {
   id: '', name: '', address: '', gstNumber: '', contactPerson: '', phone: '', email: '',
-  status: 'Active', numberPrefix: '',
+  status: 'Active', numberPrefix: '', state: '', district: '', pincode: '',
 };
 
 export default function CustomersPage() {
@@ -78,8 +78,8 @@ export default function CustomersPage() {
           <Users className="w-5 h-5 text-primary-foreground" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold font-heading text-foreground">Customers</h1>
-          <p className="text-sm text-muted-foreground">Manage clients for quotations</p>
+          <h1 className="text-2xl font-bold font-heading text-foreground">Clients Master</h1>
+          <p className="text-sm text-muted-foreground">Manage clients for quotations and reports</p>
         </div>
       </div>
 
@@ -89,25 +89,27 @@ export default function CustomersPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search name or GST..." className="pl-9" />
           </div>
-          <Button size="sm" onClick={openAdd}><Plus className="w-4 h-4 mr-1" /> Add Customer</Button>
+          <Button size="sm" onClick={openAdd}><Plus className="w-4 h-4 mr-1" /> Add Client</Button>
         </div>
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead>ID</TableHead><TableHead>Name</TableHead><TableHead>Prefix</TableHead>
+              <TableHead>Name</TableHead><TableHead>Prefix</TableHead>
               <TableHead>GST</TableHead><TableHead>Contact</TableHead><TableHead>Phone</TableHead>
+              <TableHead>State</TableHead><TableHead>District</TableHead>
               <TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {paged.map(c => (
               <TableRow key={c.id}>
-                <TableCell className="font-medium text-primary text-sm">{c.id}</TableCell>
                 <TableCell className="font-medium">{c.name}</TableCell>
                 <TableCell className="font-mono text-xs">{c.numberPrefix || '—'}</TableCell>
                 <TableCell>{c.gstNumber || '—'}</TableCell>
                 <TableCell>{c.contactPerson || '—'}</TableCell>
                 <TableCell>{c.phone || '—'}</TableCell>
+                <TableCell>{c.state || '—'}</TableCell>
+                <TableCell>{c.district || '—'}</TableCell>
                 <TableCell>
                   <Badge variant={c.status === 'Active' ? 'default' : 'secondary'}
                     className={c.status === 'Active' ? 'bg-success text-success-foreground' : ''}>
@@ -121,7 +123,7 @@ export default function CustomersPage() {
               </TableRow>
             ))}
             {filtered.length === 0 && (
-              <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+              <TableRow><TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
                 No customers found. Click <strong>Add Customer</strong> to create one.
               </TableCell></TableRow>
             )}
@@ -139,15 +141,29 @@ export default function CustomersPage() {
 
       <Dialog open={dialog} onOpenChange={setDialog}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>{edit ? 'Edit Customer' : 'Add Customer'}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{edit ? 'Edit Client' : 'Add Client'}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div>
-              <label className="text-sm font-medium block mb-1">Customer Name *</label>
+              <label className="text-sm font-medium block mb-1">Client Name *</label>
               <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="M/s. ABC Pvt Ltd" />
             </div>
             <div>
               <label className="text-sm font-medium block mb-1">Address</label>
               <Textarea rows={3} value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} placeholder="Full address" />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="text-sm font-medium block mb-1">State</label>
+                <Input value={form.state || ''} onChange={e => setForm(f => ({ ...f, state: e.target.value }))} placeholder="e.g. Tamil Nadu" />
+              </div>
+              <div>
+                <label className="text-sm font-medium block mb-1">District</label>
+                <Input value={form.district || ''} onChange={e => setForm(f => ({ ...f, district: e.target.value }))} placeholder="e.g. Coimbatore" />
+              </div>
+              <div>
+                <label className="text-sm font-medium block mb-1">Pincode</label>
+                <Input value={form.pincode || ''} onChange={e => setForm(f => ({ ...f, pincode: e.target.value }))} placeholder="e.g. 641001" />
+              </div>
             </div>
             <div>
               <label className="text-sm font-medium block mb-1">Quotation Number Prefix</label>
@@ -184,7 +200,7 @@ export default function CustomersPage() {
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={save} className="w-full">{edit ? 'Update' : 'Add'} Customer</Button>
+            <Button onClick={save} className="w-full">{edit ? 'Update' : 'Add'} Client</Button>
           </div>
         </DialogContent>
       </Dialog>

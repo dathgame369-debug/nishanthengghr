@@ -28,8 +28,12 @@ export default function QuotationListPage() {
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('All');
+  const [customerFilter, setCustomerFilter] = useState('All');
+  const [dateFilter, setDateFilter] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  const uniqueCustomers = useMemo(() => Array.from(new Map(quotations.filter(q => q.customerId).map(q => [q.customerId, q.customerName])).entries()), [quotations]);
 
   const filtered = useMemo(() => {
     return quotations.filter(q => {
@@ -37,9 +41,18 @@ export default function QuotationListPage() {
         q.quotationNumber.toLowerCase().includes(search.toLowerCase()) ||
         q.customerName.toLowerCase().includes(search.toLowerCase());
       const matchStatus = status === 'All' || q.status === status;
-      return matchSearch && matchStatus;
+      const matchCustomer = customerFilter === 'All' || q.customerId === customerFilter;
+      
+      let matchDate = true;
+      if (dateFilter) {
+         const [y, m, d] = dateFilter.split('-');
+         const filterDateStr = `${d}-${m}-${y}`;
+         matchDate = q.quotationDate === filterDateStr;
+      }
+
+      return matchSearch && matchStatus && matchCustomer && matchDate;
     });
-  }, [quotations, search, status]);
+  }, [quotations, search, status, customerFilter, dateFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const activePage = Math.min(page, totalPages);
@@ -82,22 +95,38 @@ export default function QuotationListPage() {
           <div className="relative flex-1 min-w-[220px] max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-              placeholder="Search number or customer..." className="pl-9" />
+              placeholder="Search number or client..." className="pl-9" />
           </div>
           <Select value={status} onValueChange={v => { setStatus(v); setPage(1); }}>
-            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="All">All Statuses</SelectItem>
               {QUOTATION_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
             </SelectContent>
           </Select>
+          <Select value={customerFilter} onValueChange={v => { setCustomerFilter(v); setPage(1); }}>
+            <SelectTrigger className="w-48"><SelectValue placeholder="All Clients" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All">All Clients</SelectItem>
+              {uniqueCustomers.map(([id, name]) => <SelectItem key={id} value={id}>{name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <div className="flex items-center gap-2">
+            <Input 
+              type="date" 
+              className="w-40" 
+              value={dateFilter} 
+              onChange={e => { setDateFilter(e.target.value); setPage(1); }} 
+              title="Filter by Date"
+            />
+          </div>
         </div>
 
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
               <TableHead>Number</TableHead><TableHead>Date</TableHead>
-              <TableHead>Customer</TableHead><TableHead>Status</TableHead>
+              <TableHead>Client</TableHead><TableHead>Status</TableHead>
               <TableHead className="text-right">Total</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>

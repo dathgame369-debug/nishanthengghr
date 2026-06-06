@@ -46,7 +46,7 @@ export default function DashboardPage() {
     <div className="animate-fade-in">
       <div className="mb-6">
         <h1 className="text-xl sm:text-2xl font-bold font-heading text-foreground">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">Nishanth Engineering Works — HR Overview</p>
+        <p className="text-sm text-muted-foreground">Nishanth Engineering Portal — HR Overview</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-6">

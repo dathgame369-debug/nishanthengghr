@@ -4,7 +4,7 @@ import { useHR } from '@/context/HRContext';
 import {
   LayoutDashboard, Users, CalendarDays,
   Wallet, FileText, LogOut, Settings, X,
-  Briefcase, FileSpreadsheet, Building2, ChevronDown, ChevronRight, Settings2,
+  Briefcase, FileSpreadsheet, Building2, ChevronDown, ChevronRight, Settings2, Plus, Eye
 } from 'lucide-react';
 import logo from '@/assets/logo.png';
 
@@ -29,13 +29,26 @@ const groups: NavGroup[] = [
       { path: '/quotations/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { path: '/quotations/new', label: 'Create Quotation', icon: FileText },
       { path: '/quotations', label: 'Quotation List', icon: FileSpreadsheet },
-      { path: '/customers', label: 'Customers', icon: Building2 },
       { path: '/quotations/settings', label: 'Quotation Settings', icon: Settings },
     ],
   },
+  {
+    key: 'reports', label: 'Reports & Inspections', icon: FileText,
+    items: [
+      { path: '/reports/new', label: 'Create Report', icon: FileText },
+      { path: '/reports', label: 'View Reports', icon: Eye },
+    ],
+  },
+  {
+    key: 'settings', label: 'Settings', icon: Settings2,
+    items: [
+      { path: '/customers', label: 'Clients Master', icon: Building2 },
+      { path: '/company-settings', label: 'Company Settings', icon: Settings2 },
+    ]
+  }
 ];
 
-const companySettingsItem: NavItem = { path: '/company-settings', label: 'Company Settings', icon: Settings2 };
+// const companySettingsItem: NavItem = { path: '/company-settings', label: 'Company Settings', icon: Settings2 };
 
 interface AppSidebarProps {
   mobileOpen?: boolean;
@@ -96,11 +109,11 @@ export default function AppSidebar({ mobileOpen = false, onClose }: AppSidebarPr
       >
       <div className="flex items-center gap-3 px-5 py-6 border-b border-sidebar-border relative">
         <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center overflow-hidden">
-          <img src={logo} alt="Nishanth Engineering Works" className="w-9 h-9 object-contain" />
+          <img src={logo} alt="Nishanth Engineering Portal" className="w-9 h-9 object-contain" />
         </div>
         <div>
           <h1 className="text-sm font-bold text-sidebar-foreground leading-tight">Nishanth</h1>
-          <p className="text-xs text-sidebar-foreground/60">Engineering Works</p>
+          <p className="text-xs text-sidebar-foreground/60">Engineering Portal</p>
         </div>
         <button
           onClick={onClose}
@@ -135,7 +148,6 @@ export default function AppSidebar({ mobileOpen = false, onClose }: AppSidebarPr
       </nav>
 
       <div className="px-3 py-4 border-t border-sidebar-border">
-        <div className="mb-2">{itemBtn(companySettingsItem)}</div>
         <button onClick={async () => { await logout(); navigate('/'); onClose?.(); }}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-destructive/20 hover:text-destructive transition-all">
           <LogOut className="w-4.5 h-4.5" />

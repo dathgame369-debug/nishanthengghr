@@ -21,6 +21,9 @@ import CustomersPage from "./pages/quotation/CustomersPage";
 import QuotationSettingsPage from "./pages/quotation/QuotationSettingsPage";
 import AppLayout from "./components/AppLayout";
 import NotFound from "./pages/NotFound";
+import ReportsPage from "./pages/ReportsPage";
+import CreateReportPage from "./pages/reports/CreateReportPage";
+import { ReportProvider } from "./context/ReportContext";
 
 const queryClient = new QueryClient();
 
@@ -31,7 +34,8 @@ const App = () => (
       <Sonner />
       <HRProvider>
         <QuotationProvider>
-          <BrowserRouter>
+          <ReportProvider>
+            <BrowserRouter>
             <Routes>
               <Route path="/" element={<LoginPage />} />
               <Route element={<AppLayout />}>
@@ -49,10 +53,14 @@ const App = () => (
                 <Route path="/quotations/settings" element={<QuotationSettingsPage />} />
                 <Route path="/quotations/:id" element={<QuotationEditorPage />} />
                 <Route path="/customers" element={<CustomersPage />} />
+                <Route path="/reports" element={<ReportsPage />} />
+                <Route path="/reports/new" element={<CreateReportPage />} />
+                <Route path="/reports/:id" element={<CreateReportPage />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </BrowserRouter>
+            </BrowserRouter>
+          </ReportProvider>
         </QuotationProvider>
       </HRProvider>
     </TooltipProvider>
