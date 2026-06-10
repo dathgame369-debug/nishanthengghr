@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useHR } from '@/context/HRContext';
 import { PayrollEntry, MONTHS, getYearOptions, calculatePayroll, formatCurrency } from '@/types/hr';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CalendarDays, Plus, Search, Eye, Pencil, Trash2, Download, FileText, IndianRupee, Users, TrendingUp } from 'lucide-react';
 import { generatePayslipPDF } from '@/utils/pdfExport';
 import { TablePagination } from '@/components/TablePagination';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PayrollFormData {
   employeeId: string;
@@ -45,7 +46,7 @@ const emptyForm = (): PayrollFormData => ({
 });
 
 export default function PayrollPage() {
-  const { employees, payroll, setPayroll, advances, setAdvances, roles } = useHR();
+  const { employees, payroll, totalPayroll, fetchPayroll, setPayroll, roles } = useHR();
   const { toast } = useToast();
   const currentYear = new Date().getFullYear();
 
@@ -62,26 +63,31 @@ export default function PayrollPage() {
   const [viewEntry, setViewEntry] = useState<PayrollEntry | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const filtered = useMemo(() => {
-    return payroll.filter(p => {
-      if (filterMonth !== 'All' && p.month !== filterMonth) return false;
-      if (filterYear !== 'All' && (p.year || currentYear) !== filterYear) return false;
-      if (search) {
-        const q = search.toLowerCase();
-        if (!p.employeeName.toLowerCase().includes(q) && !p.employeeId.toLowerCase().includes(q)) return false;
-      }
-      return true;
-    }).sort((a, b) => b.date.localeCompare(a.date));
-  }, [payroll, filterMonth, filterYear, search, currentYear]);
+  const totalPages = Math.max(1, Math.ceil(totalPayroll / pageSize));
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
+  // Fetch payroll from server whenever filters/page change
+  const doFetch = useCallback(() => {
+    fetchPayroll(page, pageSize, {
+      month: filterMonth !== 'All' ? filterMonth : undefined,
+      year: filterYear,
+      search: search || undefined,
+    });
+  }, [page, pageSize, filterMonth, filterYear, search, fetchPayroll]);
+
+  useEffect(() => {
+    doFetch();
+  }, [doFetch]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [filterMonth, filterYear, search]);
 
   const stats = useMemo(() => {
-    const totalNet = filtered.reduce((s, p) => s + p.netPayable, 0);
-    const totalAdv = filtered.reduce((s, p) => s + p.advanceDeduction, 0);
-    return { count: filtered.length, totalNet, totalAdv };
-  }, [filtered]);
+    const totalNet = payroll.reduce((s, p) => s + p.netPayable, 0);
+    const totalAdv = payroll.reduce((s, p) => s + p.advanceDeduction, 0);
+    return { count: totalPayroll, totalNet, totalAdv };
+  }, [payroll, totalPayroll]);
 
   const formEmp = employees.find(e => e.id === form.employeeId);
   const formRole = formEmp ? roles.find(r => r.name === formEmp.designation) : undefined;
@@ -118,19 +124,26 @@ export default function PayrollPage() {
     setFormOpen(true);
   };
 
-  const onEmployeeChange = (empId: string) => {
+  const onEmployeeChange = async (empId: string) => {
     const emp = employees.find(e => e.id === empId);
     if (!emp) return;
-    const activeAdv = advances.find(a => a.employeeId === empId && a.status === 'Active');
+    // Fetch active advance for this employee directly from DB
+    const { data: advData } = await supabase
+      .from('advances')
+      .select('monthly_deduction_amount')
+      .eq('employee_id', empId)
+      .eq('status', 'Active')
+      .maybeSingle();
+    const monthlyDed = advData ? Number(advData.monthly_deduction_amount) : 0;
     setForm(f => ({
       ...f,
       employeeId: empId,
       monthlySalary: emp.fixedSalary,
-      advanceDeduction: editingId ? f.advanceDeduction : (activeAdv?.monthlyDeductionAmount || 0),
+      advanceDeduction: editingId ? f.advanceDeduction : monthlyDed,
     }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.employeeId) {
       toast({ title: 'Validation', description: 'Please select an employee', variant: 'destructive' });
       return;
@@ -164,55 +177,83 @@ export default function PayrollPage() {
     if (editingId) {
       const old = payroll.find(p => p.id === editingId);
       const advDelta = newEntry.advanceDeduction - (old?.advanceDeduction || 0);
-      const activeAdv2 = advances.find(a => a.employeeId === form.employeeId && a.status === 'Active');
-      if (activeAdv2 && advDelta > activeAdv2.remainingBalance) {
-        toast({ title: 'Exceeds remaining advance', description: `Deduction cannot exceed remaining ₹${activeAdv2.remainingBalance.toLocaleString()}`, variant: 'destructive' });
-        return;
+      if (advDelta !== 0) {
+        // Validate + update advance balance directly in DB
+        const { data: activeAdv } = await supabase
+          .from('advances')
+          .select('*')
+          .eq('employee_id', form.employeeId)
+          .eq('status', 'Active')
+          .maybeSingle();
+        if (activeAdv && advDelta > Number(activeAdv.remaining_balance)) {
+          toast({ title: 'Exceeds remaining advance', description: `Deduction cannot exceed remaining ₹${Number(activeAdv.remaining_balance).toLocaleString()}`, variant: 'destructive' });
+          return;
+        }
+        if (activeAdv) await updateAdvanceInDB(activeAdv, advDelta, `${form.month} ${form.year}`);
       }
-      if (advDelta !== 0) updateAdvance(form.employeeId, advDelta, `${form.month} ${form.year}`);
       setPayroll(prev => prev.map(p => p.id === editingId ? newEntry : p));
       toast({ title: 'Updated', description: `Payslip for ${emp.name} updated` });
     } else {
-      const activeAdv2 = advances.find(a => a.employeeId === form.employeeId && a.status === 'Active');
-      if (activeAdv2 && newEntry.advanceDeduction > activeAdv2.remainingBalance) {
-        toast({ title: 'Exceeds remaining advance', description: `Deduction cannot exceed remaining ₹${activeAdv2.remainingBalance.toLocaleString()}`, variant: 'destructive' });
-        return;
+      // Validate + update advance balance directly in DB
+      if (newEntry.advanceDeduction > 0) {
+        const { data: activeAdv } = await supabase
+          .from('advances')
+          .select('*')
+          .eq('employee_id', form.employeeId)
+          .eq('status', 'Active')
+          .maybeSingle();
+        if (activeAdv && newEntry.advanceDeduction > Number(activeAdv.remaining_balance)) {
+          toast({ title: 'Exceeds remaining advance', description: `Deduction cannot exceed remaining ₹${Number(activeAdv.remaining_balance).toLocaleString()}`, variant: 'destructive' });
+          return;
+        }
+        if (activeAdv) await updateAdvanceInDB(activeAdv, newEntry.advanceDeduction, `${form.month} ${form.year}`);
       }
-      if (newEntry.advanceDeduction > 0) updateAdvance(form.employeeId, newEntry.advanceDeduction, `${form.month} ${form.year}`);
       setPayroll(prev => [...prev, newEntry]);
       toast({ title: 'Saved', description: `Payslip for ${emp.name} created` });
     }
     setFormOpen(false);
+    doFetch(); // Refresh current page
   };
 
-  const updateAdvance = (empId: string, amount: number, monthLabel: string) => {
-    setAdvances(prev => prev.map(adv => {
-      if (adv.employeeId === empId && adv.status === 'Active') {
-        const newDeducted = Math.max(0, adv.totalDeducted + amount);
-        const newBalance = adv.advanceAmount - newDeducted;
-        return {
-          ...adv,
-          totalDeducted: newDeducted,
-          remainingBalance: Math.max(0, newBalance),
-          status: newBalance <= 0 ? 'Closed' : 'Active',
-          deductionHistory: amount > 0 ? [...adv.deductionHistory, { month: monthLabel, amount }] : adv.deductionHistory,
-        };
-      }
-      return adv;
-    }));
+  // Update advance balance directly in Supabase (no need for in-memory state)
+  const updateAdvanceInDB = async (advRow: any, amount: number, monthLabel: string) => {
+    const advId = advRow.id;
+    const newDeducted = Math.max(0, Number(advRow.total_deducted) + amount);
+    const newBalance = Math.max(0, Number(advRow.advance_amount) - newDeducted);
+    const newStatus = newBalance <= 0 ? 'Closed' : 'Active';
+    const history = Array.isArray(advRow.deduction_history) ? advRow.deduction_history : [];
+    const newHistory = amount > 0 ? [...history, { month: monthLabel, amount }] : history;
+    await supabase.from('advances').update({
+      total_deducted: newDeducted,
+      remaining_balance: newBalance,
+      status: newStatus,
+      deduction_history: newHistory,
+    }).eq('id', advId);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deleteId) return;
     const entry = payroll.find(p => p.id === deleteId);
-    if (entry && entry.advanceDeduction > 0) updateAdvance(entry.employeeId, -entry.advanceDeduction, '');
+    if (entry && entry.advanceDeduction > 0) {
+      // Reverse advance deduction directly in DB
+      const { data: activeAdv } = await supabase
+        .from('advances')
+        .select('*')
+        .eq('employee_id', entry.employeeId)
+        .eq('status', 'Active')
+        .maybeSingle();
+      if (activeAdv) {
+        await updateAdvanceInDB(activeAdv, -entry.advanceDeduction, '');
+      }
+    }
     setPayroll(prev => prev.filter(p => p.id !== deleteId));
     toast({ title: 'Deleted', description: 'Payslip removed' });
     setDeleteId(null);
+    doFetch();
   };
 
   const handleDownload = (entry: PayrollEntry) => {
-    generatePayslipPDF(entry, employees, advances);
+    generatePayslipPDF(entry, employees, []);
   };
 
   return (
@@ -296,7 +337,7 @@ export default function PayrollPage() {
 
       {/* Table */}
       <div className="bg-card rounded-xl card-shadow border border-border overflow-hidden">
-        {filtered.length === 0 ? (
+        {payroll.length === 0 ? (
           <div className="p-16 text-center">
             <FileText className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
             <p className="text-muted-foreground font-medium">No payroll records found</p>
@@ -323,7 +364,7 @@ export default function PayrollPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paged.map(entry => (
+                {payroll.map(entry => (
                   <TableRow key={entry.id} className="hover:bg-muted/30">
                     <TableCell className="font-medium text-primary">{entry.employeeId}</TableCell>
                     <TableCell className="font-medium">{entry.employeeName}</TableCell>
@@ -363,9 +404,9 @@ export default function PayrollPage() {
             currentPage={page}
             totalPages={totalPages}
             pageSize={pageSize}
-            totalItems={filtered.length}
+            totalItems={totalPayroll}
             onPageChange={setPage}
-            onPageSizeChange={setPageSize}
+            onPageSizeChange={(sz) => { setPageSize(sz); setPage(1); }}
           />
           </div>
         )}

@@ -5,11 +5,24 @@ import {
   Customer, Quotation, QuotationItem, QuotationSettings, DEFAULT_TERMS,
 } from '@/types/quotation';
 
+export interface QuotationFilters {
+  search?: string;
+  status?: string;
+  customerId?: string;
+  dateFilter?: string;
+}
+
 interface Ctx {
   loading: boolean;
+  // Customers — fully loaded (small, reference table)
   customers: Customer[];
+  // Quotations — current page only
   quotations: Quotation[];
+  totalQuotations: number;
+  fetchQuotations: (page: number, pageSize: number, filters?: QuotationFilters) => Promise<void>;
+  // Items — loaded for current page's quotations
   items: QuotationItem[];
+  fetchItemsByQuotationId: (quotationId: string) => Promise<QuotationItem[]>;
   settings: QuotationSettings;
   saveCustomer: (c: Customer) => Promise<void>;
   deleteCustomer: (id: string) => Promise<void>;
@@ -83,27 +96,25 @@ export function QuotationProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [quotations, setQuotations] = useState<Quotation[]>([]);
+  const [totalQuotations, setTotalQuotations] = useState(0);
   const [items, setItems] = useState<QuotationItem[]>([]);
   const [settings, setSettings] = useState<QuotationSettings>(DEFAULT_SETTINGS);
 
+  // Load reference data (customers + settings) on session start
   useEffect(() => {
     if (!session) {
-      setCustomers([]); setQuotations([]); setItems([]); setSettings(DEFAULT_SETTINGS);
+      setCustomers([]); setQuotations([]); setItems([]);
+      setTotalQuotations(0); setSettings(DEFAULT_SETTINGS);
       return;
     }
     let cancelled = false;
     (async () => {
-      setLoading(true);
-      const [c, q, it, s] = await Promise.all([
+      const [c, s] = await Promise.all([
         supabase.from('customers').select('*').order('id'),
-        supabase.from('quotations').select('*').order('created_at', { ascending: false }),
-        supabase.from('quotation_items').select('*').order('sl_no'),
         supabase.from('quotation_settings').select('*').eq('id', 'main').maybeSingle(),
       ]);
       if (cancelled) return;
       setCustomers((c.data || []).map(customerFromRow));
-      setQuotations((q.data || []).map(quotationFromRow));
-      setItems((it.data || []).map(itemFromRow));
       if (s.data) {
         setSettings({
           id: s.data.id, numberPrefix: s.data.number_prefix,
@@ -119,10 +130,82 @@ export function QuotationProvider({ children }: { children: React.ReactNode }) {
           default_tax_percent: DEFAULT_SETTINGS.defaultTaxPercent,
         });
       }
-      setLoading(false);
     })();
     return () => { cancelled = true; };
   }, [session]);
+
+  // Server-side paginated quotation fetch
+  const fetchQuotations = useCallback(async (
+    page: number,
+    pageSize: number,
+    filters: QuotationFilters = {}
+  ) => {
+    if (!session) return;
+    setLoading(true);
+    try {
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
+      let query = supabase
+        .from('quotations')
+        .select('*', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      if (filters.search) {
+        query = query.or(
+          `quotation_number.ilike.%${filters.search}%,customer_name.ilike.%${filters.search}%`
+        );
+      }
+      if (filters.status && filters.status !== 'All') {
+        query = query.eq('status', filters.status);
+      }
+      if (filters.customerId && filters.customerId !== 'All') {
+        query = query.eq('customer_id', filters.customerId);
+      }
+      if (filters.dateFilter) {
+        // quotation_date stored as "DD-MM-YYYY" text — do exact match
+        const [y, m, d] = filters.dateFilter.split('-');
+        const dateStr = `${d}-${m}-${y}`;
+        query = query.eq('quotation_date', dateStr);
+      }
+
+      const { data, count, error } = await query;
+      if (error) throw error;
+
+      const pageQuotations = (data || []).map(quotationFromRow);
+      setQuotations(pageQuotations);
+      setTotalQuotations(count ?? 0);
+
+      // Batch-load items for all quotations on this page
+      if (pageQuotations.length > 0) {
+        const ids = pageQuotations.map(q => q.id);
+        const { data: itemData } = await supabase
+          .from('quotation_items')
+          .select('*')
+          .in('quotation_id', ids)
+          .order('sl_no');
+        setItems((itemData || []).map(itemFromRow));
+      } else {
+        setItems([]);
+      }
+    } catch (e) {
+      console.error('[quotations] fetchQuotations failed', e);
+    } finally {
+      setLoading(false);
+    }
+  }, [session]);
+
+  // Fetch items for a specific quotation (used by editor page)
+  const fetchItemsByQuotationId = useCallback(async (quotationId: string): Promise<QuotationItem[]> => {
+    const { data, error } = await supabase
+      .from('quotation_items')
+      .select('*')
+      .eq('quotation_id', quotationId)
+      .order('sl_no');
+    if (error) throw error;
+    return (data || []).map(itemFromRow);
+  }, []);
 
   const saveCustomer = useCallback(async (c: Customer) => {
     const { error } = await supabase.from('customers').upsert(customerToRow(c));
@@ -142,12 +225,12 @@ export function QuotationProvider({ children }: { children: React.ReactNode }) {
   const saveQuotation = useCallback(async (q: Quotation, qItems: QuotationItem[]) => {
     const { error: qe } = await supabase.from('quotations').upsert(quotationToRow(q));
     if (qe) throw qe;
-    // replace items: delete existing, insert new
     await supabase.from('quotation_items').delete().eq('quotation_id', q.id);
     if (qItems.length) {
       const { error: ie } = await supabase.from('quotation_items').insert(qItems.map(itemToRow));
       if (ie) throw ie;
     }
+    // Update local state for the current page view
     setQuotations(prev => {
       const exists = prev.find(x => x.id === q.id);
       return exists ? prev.map(x => x.id === q.id ? q : x) : [q, ...prev];
@@ -160,6 +243,7 @@ export function QuotationProvider({ children }: { children: React.ReactNode }) {
     const { error } = await supabase.from('quotations').delete().eq('id', id);
     if (error) throw error;
     setQuotations(prev => prev.filter(x => x.id !== id));
+    setTotalQuotations(prev => Math.max(0, prev - 1));
     setItems(prev => prev.filter(i => i.quotationId !== id));
   }, []);
 
@@ -180,7 +264,8 @@ export function QuotationProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <QuotationContext.Provider value={{
-      loading, customers, quotations, items, settings,
+      loading, customers, quotations, totalQuotations, fetchQuotations,
+      items, fetchItemsByQuotationId, settings,
       saveCustomer, deleteCustomer, saveQuotation, deleteQuotation, saveSettings, bumpSequence,
     }}>
       {children}

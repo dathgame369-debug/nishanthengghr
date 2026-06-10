@@ -6,6 +6,12 @@ import { hashPassword } from '@/utils/crypto';
 
 type Setter<T> = React.Dispatch<React.SetStateAction<T[]>>;
 
+export interface PayrollFilters {
+  search?: string;
+  month?: string;
+  year?: number | 'All';
+}
+
 interface HRContextType {
   isLoggedIn: boolean;
   loading: boolean;
@@ -14,16 +20,23 @@ interface HRContextType {
   signUp: (username: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   logout: () => Promise<void>;
   updateCredentials: (newUsername: string, newPassword?: string) => Promise<{ ok: boolean; error?: string }>;
+  // Reference tables — fully loaded
   employees: Employee[];
   setEmployees: Setter<Employee>;
-  advances: Advance[];
-  setAdvances: Setter<Advance>;
-  payroll: PayrollEntry[];
-  setPayroll: Setter<PayrollEntry>;
   departments: Department[];
   setDepartments: Setter<Department>;
   roles: Role[];
   setRoles: Setter<Role>;
+  // Payroll — server-side paginated
+  payroll: PayrollEntry[];        // current page
+  totalPayroll: number;
+  fetchPayroll: (page: number, pageSize: number, filters?: PayrollFilters) => Promise<void>;
+  setPayroll: Setter<PayrollEntry>;   // for mutations (add/edit/delete)
+  // Advances — server-side paginated
+  advances: Advance[];            // current page
+  totalAdvances: number;
+  fetchAdvances: (page: number, pageSize: number) => Promise<void>;
+  setAdvances: Setter<Advance>;   // for mutations
 }
 
 const HRContext = createContext<HRContextType | null>(null);
@@ -121,11 +134,17 @@ export function HRProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Reference tables — fully loaded
   const [employees, setEmployeesState] = useState<Employee[]>([]);
-  const [advances, setAdvancesState] = useState<Advance[]>([]);
-  const [payroll, setPayrollState] = useState<PayrollEntry[]>([]);
   const [departments, setDepartmentsState] = useState<Department[]>([]);
   const [roles, setRolesState] = useState<Role[]>([]);
+
+  // Paginated tables — current page only
+  const [payroll, setPayrollState] = useState<PayrollEntry[]>([]);
+  const [totalPayroll, setTotalPayroll] = useState(0);
+  const [advances, setAdvancesState] = useState<Advance[]>([]);
+  const [totalAdvances, setTotalAdvances] = useState(0);
 
   const isLoggedIn = !!session;
 
@@ -142,27 +161,24 @@ export function HRProvider({ children }: { children: React.ReactNode }) {
     setAuthReady(true);
   }, []);
 
-  // Load data when logged in
+  // Load reference tables when logged in (employees, departments, roles)
   useEffect(() => {
     if (!session) {
-      setEmployeesState([]); setAdvancesState([]); setPayrollState([]);
-      setDepartmentsState([]); setRolesState([]);
+      setEmployeesState([]); setDepartmentsState([]); setRolesState([]);
+      setPayrollState([]); setAdvancesState([]);
+      setTotalPayroll(0); setTotalAdvances(0);
       return;
     }
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const [emp, adv, pay, dep, rol] = await Promise.all([
+      const [emp, dep, rol] = await Promise.all([
         supabase.from('employees').select('*').order('id'),
-        supabase.from('advances').select('*').order('created_at'),
-        supabase.from('payroll').select('*').order('created_at'),
         supabase.from('departments').select('*').order('id'),
         supabase.from('roles').select('*').order('id'),
       ]);
       if (cancelled) return;
       setEmployeesState((emp.data || []).map(empFromRow));
-      setAdvancesState((adv.data || []).map(advFromRow));
-      setPayrollState((pay.data || []).map(payFromRow));
       setDepartmentsState((dep.data || []).map(deptFromRow));
       setRolesState((rol.data || []).map(roleFromRow));
       setLoading(false);
@@ -170,12 +186,69 @@ export function HRProvider({ children }: { children: React.ReactNode }) {
     return () => { cancelled = true; };
   }, [session]);
 
-  // Generic syncing setter factory
+  // Server-side paginated payroll fetch
+  const fetchPayroll = useCallback(async (
+    page: number,
+    pageSize: number,
+    filters: PayrollFilters = {}
+  ) => {
+    if (!session) return;
+    try {
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
+      let query = supabase
+        .from('payroll')
+        .select('*', { count: 'exact' })
+        .order('date', { ascending: false })
+        .range(from, to);
+
+      if (filters.month && filters.month !== 'All') {
+        query = query.eq('month', filters.month);
+      }
+      if (filters.year && filters.year !== 'All') {
+        query = query.eq('year', filters.year);
+      }
+      if (filters.search) {
+        query = query.or(
+          `employee_name.ilike.%${filters.search}%,employee_id.ilike.%${filters.search}%`
+        );
+      }
+
+      const { data, count, error } = await query;
+      if (error) throw error;
+      setPayrollState((data || []).map(payFromRow));
+      setTotalPayroll(count ?? 0);
+    } catch (e) {
+      console.error('[payroll] fetchPayroll failed', e);
+    }
+  }, [session]);
+
+  // Server-side paginated advances fetch
+  const fetchAdvances = useCallback(async (page: number, pageSize: number) => {
+    if (!session) return;
+    try {
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+      const { data, count, error } = await supabase
+        .from('advances')
+        .select('*', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, to);
+      if (error) throw error;
+      setAdvancesState((data || []).map(advFromRow));
+      setTotalAdvances(count ?? 0);
+    } catch (e) {
+      console.error('[advances] fetchAdvances failed', e);
+    }
+  }, [session]);
+
+  // Generic syncing setter factory — used for reference tables (employees, departments, roles)
+  // and also for payroll/advances mutations (add/edit/delete single items)
   function makeSetter<T extends { id: string }>(
     table: 'employees' | 'advances' | 'payroll' | 'departments' | 'roles',
     setLocal: React.Dispatch<React.SetStateAction<T[]>>,
     toRow: (x: T) => any,
-    getCurrent: () => T[],
   ): Setter<T> {
     return (action: React.SetStateAction<T[]>) => {
       setLocal(prev => {
@@ -197,16 +270,16 @@ export function HRProvider({ children }: { children: React.ReactNode }) {
   }
 
   const empRef = useRef(employees); empRef.current = employees;
-  const advRef = useRef(advances); advRef.current = advances;
-  const payRef = useRef(payroll); payRef.current = payroll;
   const depRef = useRef(departments); depRef.current = departments;
   const rolRef = useRef(roles); rolRef.current = roles;
+  const payRef = useRef(payroll); payRef.current = payroll;
+  const advRef = useRef(advances); advRef.current = advances;
 
-  const setEmployees = useCallback(makeSetter<Employee>('employees', setEmployeesState, empToRow, () => empRef.current), []);
-  const setAdvances = useCallback(makeSetter<Advance>('advances', setAdvancesState, advToRow, () => advRef.current), []);
-  const setPayroll = useCallback(makeSetter<PayrollEntry>('payroll', setPayrollState, payToRow, () => payRef.current), []);
-  const setDepartments = useCallback(makeSetter<Department>('departments', setDepartmentsState, deptToRow, () => depRef.current), []);
-  const setRoles = useCallback(makeSetter<Role>('roles', setRolesState, roleToRow, () => rolRef.current), []);
+  const setEmployees = useCallback(makeSetter<Employee>('employees', setEmployeesState, empToRow), []);
+  const setDepartments = useCallback(makeSetter<Department>('departments', setDepartmentsState, deptToRow), []);
+  const setRoles = useCallback(makeSetter<Role>('roles', setRolesState, roleToRow), []);
+  const setPayroll = useCallback(makeSetter<PayrollEntry>('payroll', setPayrollState, payToRow), []);
+  const setAdvances = useCallback(makeSetter<Advance>('advances', setAdvancesState, advToRow), []);
 
   const login = useCallback(async (username: string, password: string) => {
     const hashedPassword = await hashPassword(password);
@@ -274,8 +347,9 @@ export function HRProvider({ children }: { children: React.ReactNode }) {
   return (
     <HRContext.Provider value={{
       isLoggedIn, loading, session, login, signUp, logout, updateCredentials,
-      employees, setEmployees, advances, setAdvances, payroll, setPayroll,
-      departments, setDepartments, roles, setRoles,
+      employees, setEmployees, departments, setDepartments, roles, setRoles,
+      payroll, totalPayroll, fetchPayroll, setPayroll,
+      advances, totalAdvances, fetchAdvances, setAdvances,
     }}>
       {children}
     </HRContext.Provider>

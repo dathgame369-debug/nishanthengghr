@@ -1,52 +1,58 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useReport } from '@/context/ReportContext';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { useQuotation } from '@/context/QuotationContext';
+import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Eye, Edit, Trash2, Loader2, Plus, Download, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Eye, Edit, Trash2, Loader2, Plus, Download } from 'lucide-react';
 import { format } from 'date-fns';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { exportReportPDF } from '@/utils/reportPdfExport';
 import { unmarshalDynamoRows } from '@/types/report';
+import { TablePagination } from '@/components/TablePagination';
+
+const PAGE_SIZE_DEFAULT = 10;
 
 export default function ReportsPage() {
-  const { reports, loading, setReports } = useReport();
+  const { reports, totalReports, loading, fetchReports, deleteReport } = useReport();
+  const { customers } = useQuotation();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [customerFilter, setCustomerFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [pageSize, setPageSize] = useState(PAGE_SIZE_DEFAULT);
 
-  const uniqueCustomers = Array.from(new Map(reports.filter(r => r.customerId).map(r => [r.customerId, r.customerName])).entries());
+  // Debounced fetch whenever filters/page change
+  const doFetch = useCallback(() => {
+    fetchReports(currentPage, pageSize, {
+      search: searchTerm || undefined,
+      customerId: customerFilter !== 'all' ? customerFilter : undefined,
+      date: dateFilter || undefined,
+    });
+  }, [currentPage, pageSize, searchTerm, customerFilter, dateFilter, fetchReports]);
 
-  const filteredReports = reports.filter(r => {
-    const matchesSearch = r.reportNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          r.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          r.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCustomer = customerFilter === 'all' || r.customerId === customerFilter;
-    const matchesDate = !dateFilter || (r.date && r.date.startsWith(dateFilter));
-    return matchesSearch && matchesCustomer && matchesDate;
-  });
+  useEffect(() => {
+    doFetch();
+  }, [doFetch]);
 
-  React.useEffect(() => {
+  // Reset to page 1 when filters change
+  useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, customerFilter, dateFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredReports.length / itemsPerPage));
-  const paginatedReports = filteredReports.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(totalReports / pageSize));
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this report?')) return;
     try {
-      const { error } = await supabase.from('reports').delete().eq('id', id);
-      if (error) throw error;
-      setReports(reports.filter(r => r.id !== id));
+      await deleteReport(id);
       toast.success('Report deleted successfully');
+      // Refresh if current page is now empty
+      doFetch();
     } catch (e: any) {
       toast.error('Failed to delete report: ' + e.message);
     }
@@ -65,7 +71,7 @@ export default function ReportsPage() {
     try {
       let parsedRows = typeof report.rows === 'string' ? JSON.parse(report.rows) : report.rows;
       if (parsedRows && parsedRows.length > 0 && (parsedRows[0].M || parsedRows[0].actualDimn?.N)) {
-          parsedRows = unmarshalDynamoRows(parsedRows);
+        parsedRows = unmarshalDynamoRows(parsedRows);
       }
       exportReportPDF({ ...report, rows: parsedRows });
       toast.success(`Downloaded Report: ${report.reportNo}`);
@@ -74,7 +80,7 @@ export default function ReportsPage() {
     }
   };
 
-  if (loading) {
+  if (loading && reports.length === 0) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -87,6 +93,7 @@ export default function ReportsPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">View Reports</h1>
+          <p className="text-sm text-muted-foreground mt-1">{totalReports} total reports</p>
         </div>
         <Button onClick={() => navigate('/reports/new')}>
           <Plus className="w-4 h-4 mr-2" />
@@ -114,18 +121,18 @@ export default function ReportsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Clients</SelectItem>
-                  {uniqueCustomers.map(([id, name]) => (
-                    <SelectItem key={id} value={id}>{name}</SelectItem>
+                  {customers.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="w-full md:w-48 flex gap-2 items-center">
-              <Input 
-                type="date" 
-                className="h-10 w-full" 
-                value={dateFilter} 
-                onChange={e => setDateFilter(e.target.value)} 
+              <Input
+                type="date"
+                className="h-10 w-full"
+                value={dateFilter}
+                onChange={e => setDateFilter(e.target.value)}
                 title="Filter by Date"
               />
               {dateFilter && (
@@ -135,7 +142,7 @@ export default function ReportsPage() {
               )}
             </div>
           </div>
-          
+
           <div className="rounded-md border">
             <Table>
               <TableHeader className="bg-slate-50 text-slate-700">
@@ -149,14 +156,20 @@ export default function ReportsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedReports.length === 0 ? (
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-24 text-center">
+                      <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
+                    </TableCell>
+                  </TableRow>
+                ) : reports.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="h-24 text-center">
                       No reports found. Please create one.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  paginatedReports.map((report) => (
+                  reports.map((report) => (
                     <TableRow key={report.id}>
                       <TableCell className="font-medium text-xs">{report.reportNo}</TableCell>
                       <TableCell className="text-xs max-w-[200px] truncate" title={report.customerName}>{report.customerName}</TableCell>
@@ -188,35 +201,14 @@ export default function ReportsPage() {
             </Table>
           </div>
 
-          {/* Pagination Controls */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4">
-              <div className="text-sm text-muted-foreground">
-                Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredReports.length)} of {filteredReports.length} reports
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeft className="w-4 h-4 mr-1" /> Previous
-                </Button>
-                <div className="text-sm font-medium">
-                  Page {currentPage} of {totalPages}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                >
-                  Next <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
-              </div>
-            </div>
-          )}
+          <TablePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalItems={totalReports}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(sz) => { setPageSize(sz); setCurrentPage(1); }}
+          />
         </CardContent>
       </Card>
     </div>

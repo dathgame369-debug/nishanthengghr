@@ -1,14 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useReport } from '@/context/ReportContext';
 import { useQuotation } from '@/context/QuotationContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Check, Download, FileSpreadsheet, Plus, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Download, FileSpreadsheet, Plus, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { exportReportPDF } from '@/utils/reportPdfExport';
 import { exportReportExcel } from '@/utils/reportExcelExport';
@@ -29,13 +26,12 @@ function splitQuotationNumber(s: string, fallbackPrefix: string) {
 export default function CreateReportPage() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { reports, setReports } = useReport();
   const { customers, settings } = useQuotation();
   const isEditing = id && id !== 'new';
 
   const [unitMode, setUnitMode] = useState<'MM' | 'IN'>('MM');
 
-  // Step 1 Details
+  // Report Details
   const [reportNo, setReportNo] = useState('');
   const [customerId, setCustomerId] = useState('');
   const [description, setDescription] = useState('');
@@ -43,7 +39,7 @@ export default function CreateReportPage() {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [detailsOfPattern, setDetailsOfPattern] = useState('');
 
-  // Step 2 Rows
+  // Report Data Rows
   const [rows, setRows] = useState<any[]>([{ id: Date.now().toString(), srNo: 1 }]);
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
@@ -51,36 +47,34 @@ export default function CreateReportPage() {
   const totalPages = Math.max(1, Math.ceil(rows.length / rowsPerPage));
   const paginatedRows = rows.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
+  // Fetch specific report by ID directly from DB when editing
   useEffect(() => {
-    if (isEditing) {
-      const existingReport = reports.find(r => r.id === id);
-      if (existingReport) {
-        setReportNo(existingReport.reportNo);
-        setCustomerId(existingReport.customerId);
-        setDescription(existingReport.description);
-        setDrgNo(existingReport.drawingNo);
-        if (existingReport.date) {
-          setDate(new Date(existingReport.date).toISOString().split('T')[0]);
-        }
-        setDetailsOfPattern(existingReport.detailsOfPattern);
-        setUnitMode(existingReport.unitMode as 'MM' | 'IN' || 'MM');
-        
-        try {
-            // The row data might be DynamoJSON if imported from legacy, or standard array if created natively.
-            // If it's legacy, unmarshal it.
-            let parsedRows = typeof existingReport.rows === 'string' ? JSON.parse(existingReport.rows) : existingReport.rows;
-            if (parsedRows.length > 0 && (parsedRows[0].M || parsedRows[0].actualDimn?.N)) {
-                parsedRows = unmarshalDynamoRows(parsedRows);
-            }
-            if (parsedRows.length > 0) {
-                setRows(parsedRows);
-            }
-        } catch (e) {
-            console.error("Failed to parse existing rows", e);
-        }
+    if (!isEditing) return;
+    (async () => {
+      const { data, error } = await supabase.from('reports').select('*').eq('id', id).maybeSingle();
+      if (error || !data) {
+        toast.error('Report not found');
+        navigate('/reports');
+        return;
       }
-    }
-  }, [id, reports, isEditing]);
+      setReportNo(data.report_no || '');
+      setCustomerId(data.customer_id || '');
+      setDescription(data.description || '');
+      setDrgNo(data.drawing_no || '');
+      if (data.date) setDate(new Date(data.date).toISOString().split('T')[0]);
+      setDetailsOfPattern(data.details_of_pattern || '');
+      setUnitMode((data.unit_mode as 'MM' | 'IN') || 'MM');
+      try {
+        let parsedRows = typeof data.rows === 'string' ? JSON.parse(data.rows) : data.rows;
+        if (parsedRows && parsedRows.length > 0 && (parsedRows[0].M || parsedRows[0].actualDimn?.N)) {
+          parsedRows = unmarshalDynamoRows(parsedRows);
+        }
+        if (parsedRows && parsedRows.length > 0) setRows(parsedRows);
+      } catch (e) {
+        console.error('Failed to parse existing rows', e);
+      }
+    })();
+  }, [id, isEditing]);
 
 
   const addRow = () => {
@@ -137,14 +131,14 @@ export default function CreateReportPage() {
 
       // Clean up rows to store in JSONB natively
       const cleanRows = rows.map(r => ({
-          ...r,
-          actualDimn: r.actualDimn ? Number(r.actualDimn) : null,
-          shrinkageAllowance: r.shrinkageAllowance ? Number(r.shrinkageAllowance) : null,
-          mcIngAllowance: r.mcIngAllowance ? Number(r.mcIngAllowance) : null,
-          drgDim: r.drgDim ? Number(r.drgDim) : null,
-          percentage: r.percentage ? Number(r.percentage) : null,
-          dimnToBeMaintained: r.dimnToBeMaintained ? Number(r.dimnToBeMaintained) : null,
-          inchValue: r.inchValue || null
+        ...r,
+        actualDimn: r.actualDimn ? Number(r.actualDimn) : null,
+        shrinkageAllowance: r.shrinkageAllowance ? Number(r.shrinkageAllowance) : null,
+        mcIngAllowance: r.mcIngAllowance ? Number(r.mcIngAllowance) : null,
+        drgDim: r.drgDim ? Number(r.drgDim) : null,
+        percentage: r.percentage ? Number(r.percentage) : null,
+        dimnToBeMaintained: r.dimnToBeMaintained ? Number(r.dimnToBeMaintained) : null,
+        inchValue: r.inchValue || null
       }));
 
       const payload = {
@@ -157,23 +151,13 @@ export default function CreateReportPage() {
         date: new Date(date).toISOString(),
         details_of_pattern: detailsOfPattern,
         unit_mode: unitMode,
-        rows: cleanRows, // Direct JSONB insert
+        rows: cleanRows,
         total_pages: '1',
         current_page: '1'
       };
 
       const { error } = await supabase.from('reports').upsert(payload);
       if (error) throw error;
-
-      // Update local Context
-      if (isEditing) {
-        setReports(reports.map(r => r.id === id ? { ...r, reportNo, customerId, customerName: customer?.name || '', description, drawingNo: drgNo, date, detailsOfPattern, unitMode, rows: cleanRows } : r));
-      } else {
-        setReports([{
-            id: reportId as string,
-            reportNo, customerId, customerName: customer?.name || '', description, drawingNo: drgNo, date, detailsOfPattern, unitMode, rows: cleanRows, totalPages: '1', currentPage: '1'
-        }, ...reports]);
-      }
 
       toast.success('Report saved successfully');
       navigate('/reports');
@@ -210,31 +194,31 @@ export default function CreateReportPage() {
 
   return (
     <div className="animate-fade-in pb-10">
-      {/* Top Header */}
-      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
+      {/* Top Header — responsive: stacks on mobile, row on sm+ */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-3">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate('/reports')}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
+          <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center shrink-0">
             <FileSpreadsheet className="w-5 h-5 text-primary-foreground" />
           </div>
-          <div>
-            <h1 className="text-2xl font-bold font-heading text-foreground">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold font-heading text-foreground truncate">
               {isEditing ? 'Edit Report' : 'New Report'}
             </h1>
-            <p className="text-sm text-muted-foreground">{reportNo || "Draft Report"}</p>
+            <p className="text-sm text-muted-foreground truncate">{reportNo || 'Draft Report'}</p>
           </div>
         </div>
-        <div className="flex gap-2 items-center">
-          <div className="bg-muted p-1 rounded-md flex items-center mr-2">
-            <button 
-                onClick={() => setUnitMode('MM')} 
-                className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-colors ${unitMode === 'MM' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+        <div className="flex flex-wrap gap-2 items-center justify-end">
+          <div className="bg-muted p-1 rounded-md flex items-center">
+            <button
+              onClick={() => setUnitMode('MM')}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-colors ${unitMode === 'MM' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
             >MM</button>
-            <button 
-                onClick={() => setUnitMode('IN')} 
-                className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-colors ${unitMode === 'IN' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            <button
+              onClick={() => setUnitMode('IN')}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-colors ${unitMode === 'IN' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
             >IN</button>
           </div>
           <Button variant="outline" onClick={handleDownloadPDF}><Download className="w-4 h-4 mr-1" /> PDF</Button>
@@ -256,9 +240,9 @@ export default function CreateReportPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
         {/* Report Info */}
-        <div className="bg-card rounded-xl border border-border p-4 space-y-3 lg:col-span-1">
+        <div className="bg-card rounded-xl border border-border p-4 space-y-3 md:col-span-1">
           <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Report Info</h3>
           <div>
             <label className="text-xs font-medium block mb-1">Report No *</label>
@@ -308,7 +292,7 @@ export default function CreateReportPage() {
         </div>
 
         {/* Customer & Details */}
-        <div className="bg-card rounded-xl border border-border p-4 space-y-3 lg:col-span-2">
+        <div className="bg-card rounded-xl border border-border p-4 space-y-3 md:col-span-2">
           <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Customer & Details</h3>
           <div>
             <label className="text-xs font-medium block mb-1">Select Customer *</label>

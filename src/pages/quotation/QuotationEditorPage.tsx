@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuotation } from "@/context/QuotationContext";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Quotation,
   QuotationItem,
@@ -55,51 +56,75 @@ export default function QuotationEditorPage() {
   const isNew = !id || id === "new";
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { quotations, items, customers, settings, saveQuotation, bumpSequence } = useQuotation();
+  const { customers, settings, saveQuotation, bumpSequence, fetchItemsByQuotationId } = useQuotation();
 
-  const existing = useMemo(() => quotations.find((q) => q.id === id), [quotations, id]);
-
-  const initial: Quotation = useMemo(() => {
-    if (existing) return existing;
-    const fy = getFinancialYear();
-    return {
-      id: crypto.randomUUID(),
-      quotationNumber: buildQuotationNumber(settings.numberPrefix, settings.nextSequence, fy),
-      quotationDate: todayStr(),
-      customerId: "",
-      customerName: "",
-      customerAddress: "",
-      customerGst: "",
-      yourRef: "",
-      yourRefDate: "",
-      dueOn: "",
-      subtotal: 0,
-      taxPercent: settings.defaultTaxPercent,
-      taxAmount: 0,
-      total: 0,
-      status: "Draft",
-      terms: settings.defaultTerms,
-      notes: "",
-      financialYear: fy,
-    };
-  }, [existing, settings]);
-
-  const [form, setForm] = useState<Quotation>(initial);
-  const [lineItems, setLineItems] = useState<QuotationItem[]>(
-    existing
-      ? items.filter((i) => i.quotationId === existing.id).sort((a, b) => a.slNo - b.slNo)
-      : [newItem(1, initial.id)],
-  );
+  const [form, setForm] = useState<Quotation>({
+    id: crypto.randomUUID(),
+    quotationNumber: '',
+    quotationDate: todayStr(),
+    customerId: '',
+    customerName: '',
+    customerAddress: '',
+    customerGst: '',
+    yourRef: '',
+    yourRefDate: '',
+    dueOn: '',
+    subtotal: 0,
+    taxPercent: 0,
+    taxAmount: 0,
+    total: 0,
+    status: 'Draft',
+    terms: '',
+    notes: '',
+    financialYear: getFinancialYear(),
+  });
+  const [lineItems, setLineItems] = useState<QuotationItem[]>([]);
   const [saving, setSaving] = useState(false);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
+  // Load quotation + items from DB when editing
   useEffect(() => {
-    setForm(initial);
-  }, [initial.id]);
-  useEffect(() => {
-    if (existing) {
-      setLineItems(items.filter((i) => i.quotationId === existing.id).sort((a, b) => a.slNo - b.slNo));
+    if (isNew) {
+      // New quotation — initialize with defaults
+      const fy = getFinancialYear();
+      const newId = crypto.randomUUID();
+      setForm({
+        id: newId,
+        quotationNumber: buildQuotationNumber(settings.numberPrefix, settings.nextSequence, fy),
+        quotationDate: todayStr(),
+        customerId: '', customerName: '', customerAddress: '', customerGst: '',
+        yourRef: '', yourRefDate: '', dueOn: '',
+        subtotal: 0, taxPercent: settings.defaultTaxPercent, taxAmount: 0, total: 0,
+        status: 'Draft', terms: settings.defaultTerms, notes: '', financialYear: fy,
+      });
+      setLineItems([newItem(1, newId)]);
+      setDataLoaded(true);
+      return;
     }
-  }, [existing, items]);
+    // Edit mode: fetch from DB directly
+    (async () => {
+      const { data: qData } = await supabase.from('quotations').select('*').eq('id', id).maybeSingle();
+      if (!qData) { navigate('/quotations'); return; }
+      const q: Quotation = {
+        id: qData.id, quotationNumber: qData.quotation_number, quotationDate: qData.quotation_date || '',
+        customerId: qData.customer_id || '', customerName: qData.customer_name || '',
+        customerAddress: qData.customer_address || '', customerGst: qData.customer_gst || '',
+        yourRef: qData.your_ref || '', yourRefDate: qData.your_ref_date || '', dueOn: qData.due_on || '',
+        subtotal: Number(qData.subtotal), taxPercent: Number(qData.tax_percent),
+        taxAmount: Number(qData.tax_amount), total: Number(qData.total),
+        status: qData.status, terms: qData.terms || '', notes: qData.notes || '',
+        financialYear: qData.financial_year || '',
+      };
+      setForm(q);
+      try {
+        const its = await fetchItemsByQuotationId(id!);
+        setLineItems(its.length > 0 ? its : [newItem(1, q.id)]);
+      } catch (e) {
+        setLineItems([newItem(1, q.id)]);
+      }
+      setDataLoaded(true);
+    })();
+  }, [id, isNew, settings]);
 
   // Auto-compute amount per row + totals
   const computed = useMemo(() => {
@@ -151,37 +176,29 @@ export default function QuotationEditorPage() {
     setLineItems((prev) => prev.filter((_, i) => i !== idx).map((it, i) => ({ ...it, slNo: i + 1 })));
   };
 
-  // Calculate the next sequence number for a customer based on their existing quotations
-  const getNextCustomerSequence = (customerPrefix: string, financialYear: string): number => {
-    // Find all quotations that match this customer's prefix and financial year
-    const customerQuotations = quotations.filter((q) => {
-      const parts = q.quotationNumber.split("/");
-      if (parts.length < 3) return false;
-      const qFy = parts[parts.length - 1];
-      const qPrefix = parts.slice(0, parts.length - 2).join("/");
-      return qPrefix === customerPrefix && qFy === financialYear;
-    });
-
-    if (customerQuotations.length === 0) return 1;
-
-    // Extract sequence numbers and find the maximum
-    const sequences = customerQuotations.map((q) => {
-      const parts = q.quotationNumber.split("/");
+  // Calculate the next sequence number for a customer by querying DB
+  const getNextCustomerSequence = async (customerPrefix: string, financialYear: string): Promise<number> => {
+    const { data } = await supabase
+      .from('quotations')
+      .select('quotation_number')
+      .like('quotation_number', `${customerPrefix}/%/${financialYear}`);
+    if (!data || data.length === 0) return 1;
+    const sequences = data.map(q => {
+      const parts = (q.quotation_number || '').split('/');
       const seq = parseInt(parts[parts.length - 2], 10);
       return isNaN(seq) ? 0 : seq;
     });
-
     return Math.max(...sequences) + 1;
   };
 
-  const pickCustomer = (cid: string) => {
+  const pickCustomer = async (cid: string) => {
     const c = customers.find((x) => x.id === cid);
     if (!c) return;
     const prefix = c.numberPrefix || settings.numberPrefix;
     const fy = form.financialYear || getFinancialYear();
 
-    // Calculate customer-specific next sequence number
-    const nextSeq = isNew ? getNextCustomerSequence(prefix, fy) : undefined;
+    // Calculate customer-specific next sequence number from DB
+    const nextSeq = isNew ? await getNextCustomerSequence(prefix, fy) : undefined;
 
     setForm((f) => ({
       ...f,
@@ -234,22 +251,22 @@ export default function QuotationEditorPage() {
 
   return (
     <div className="animate-fade-in">
-      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-3">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate("/quotations")}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
+          <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center shrink-0">
             <FileText className="w-5 h-5 text-primary-foreground" />
           </div>
-          <div>
-            <h1 className="text-2xl font-bold font-heading text-foreground">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold font-heading text-foreground truncate">
               {isNew ? "New Quotation" : "Edit Quotation"}
             </h1>
-            <p className="text-sm text-muted-foreground">{form.quotationNumber}</p>
+            <p className="text-sm text-muted-foreground truncate">{form.quotationNumber}</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap justify-end">
           <Button variant="outline" onClick={handleDownload}>
             <Download className="w-4 h-4 mr-1" /> Preview PDF
           </Button>

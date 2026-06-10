@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useHR } from '@/context/HRContext';
 import { Advance } from '@/types/hr';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ import { formatCurrency } from '@/types/hr';
 import { TablePagination } from '@/components/TablePagination';
 
 export default function AdvanceManagementPage() {
-  const { employees, advances, setAdvances } = useHR();
+  const { employees, advances, totalAdvances, fetchAdvances, setAdvances } = useHR();
   const { toast } = useToast();
   const [showAdd, setShowAdd] = useState(false);
   const [editAdv, setEditAdv] = useState<Advance | null>(null);
@@ -26,8 +26,15 @@ export default function AdvanceManagementPage() {
     monthlyDeductionAmount: '', notes: '',
   });
 
-  const totalPages = Math.max(1, Math.ceil(advances.length / pageSize));
-  const paged = advances.slice((page - 1) * pageSize, page * pageSize);
+  const totalPages = Math.max(1, Math.ceil(totalAdvances / pageSize));
+
+  const doFetch = useCallback(() => {
+    fetchAdvances(page, pageSize);
+  }, [page, pageSize, fetchAdvances]);
+
+  useEffect(() => {
+    doFetch();
+  }, [doFetch]);
 
   const handleAdd = () => {
     const emp = employees.find(e => e.id === form.employeeId);
@@ -46,6 +53,7 @@ export default function AdvanceManagementPage() {
     setShowAdd(false);
     setForm({ employeeId: '', advanceDate: '', advanceAmount: '', deductionType: 'Manual', monthlyDeductionAmount: '', notes: '' });
     toast({ title: 'Advance Added', description: `₹${amt.toLocaleString()} advance for ${emp.name}` });
+    doFetch();
   };
 
   const handleEdit = () => {
@@ -60,6 +68,7 @@ export default function AdvanceManagementPage() {
     setAdvances(prev => prev.map(a => a.id === editAdv.id ? updated : a));
     setEditAdv(null);
     toast({ title: 'Updated' });
+    doFetch();
   };
 
   const handleDelete = () => {
@@ -67,6 +76,7 @@ export default function AdvanceManagementPage() {
     setAdvances(prev => prev.filter(a => a.id !== deleteAdv.id));
     toast({ title: 'Deleted', description: `Advance for ${deleteAdv.employeeName} removed` });
     setDeleteAdv(null);
+    doFetch();
   };
 
   return (
@@ -95,7 +105,7 @@ export default function AdvanceManagementPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {paged.map(adv => (
+            {advances.map(adv => (
               <TableRow key={adv.id}>
                 <TableCell className="font-medium text-primary">{adv.employeeId}</TableCell>
                 <TableCell>{adv.employeeName}</TableCell>
@@ -127,9 +137,9 @@ export default function AdvanceManagementPage() {
           currentPage={page}
           totalPages={totalPages}
           pageSize={pageSize}
-          totalItems={advances.length}
+          totalItems={totalAdvances}
           onPageChange={setPage}
-          onPageSizeChange={setPageSize}
+          onPageSizeChange={(sz) => { setPageSize(sz); setPage(1); }}
         />
       </div>
 
