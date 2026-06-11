@@ -117,10 +117,116 @@ export default function CreateReportPage() {
     }));
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const target = e.target as HTMLInputElement;
+
     if (e.key === 'Enter') {
       e.preventDefault();
       addRow();
+      setTimeout(() => {
+        const tbody = target.closest('tbody');
+        if (!tbody) return;
+        const trs = Array.from(tbody.querySelectorAll('tr'));
+        const lastTr = trs[trs.length - 1];
+        const firstInput = lastTr?.querySelector('input:not([readOnly])') as HTMLInputElement | null;
+        if (firstInput) {
+          firstInput.focus();
+          try { firstInput.select(); } catch (err) {}
+        }
+      }, 50);
+      return;
+    }
+
+    if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      return;
+    }
+
+    const td = target.closest('td');
+    const tr = target.closest('tr');
+    if (!td || !tr) return;
+
+    const tbody = tr.closest('tbody');
+    if (!tbody) return;
+
+    const trs = Array.from(tbody.querySelectorAll('tr'));
+    const rowIndex = trs.indexOf(tr);
+    const tds = Array.from(tr.querySelectorAll('td'));
+    const colIndex = tds.indexOf(td);
+
+    if (e.key === 'ArrowUp') {
+      if (rowIndex > 0) {
+        e.preventDefault();
+        const prevTr = trs[rowIndex - 1];
+        const targetTd = prevTr.querySelectorAll('td')[colIndex];
+        const input = targetTd?.querySelector('input:not([readOnly])') as HTMLInputElement | null;
+        if (input) {
+          input.focus();
+          try { input.select(); } catch (err) {}
+        }
+      }
+    } else if (e.key === 'ArrowDown') {
+      if (rowIndex < trs.length - 1) {
+        e.preventDefault();
+        const nextTr = trs[rowIndex + 1];
+        const targetTd = nextTr.querySelectorAll('td')[colIndex];
+        const input = targetTd?.querySelector('input:not([readOnly])') as HTMLInputElement | null;
+        if (input) {
+          input.focus();
+          try { input.select(); } catch (err) {}
+        }
+      }
+    } else if (e.key === 'ArrowLeft') {
+      let atStart = false;
+      try {
+        if (target.selectionStart !== null) {
+          atStart = target.selectionStart === 0;
+        } else {
+          atStart = true;
+        }
+      } catch (err) {
+        atStart = true;
+      }
+      
+      if (!atStart) return;
+      
+      e.preventDefault();
+      let prevTdIndex = colIndex - 1;
+      while (prevTdIndex >= 0) {
+        const targetTd = tds[prevTdIndex];
+        const input = targetTd?.querySelector('input:not([readOnly])') as HTMLInputElement | null;
+        if (input) {
+          input.focus();
+          try { input.select(); } catch (err) {}
+          break;
+        }
+        prevTdIndex--;
+      }
+    } else if (e.key === 'ArrowRight') {
+      let atEnd = false;
+      try {
+        if (target.selectionEnd !== null) {
+          atEnd = target.selectionEnd === target.value.length;
+        } else {
+          atEnd = true;
+        }
+      } catch (err) {
+        atEnd = true;
+      }
+      
+      if (!atEnd) return;
+
+      e.preventDefault();
+      let nextTdIndex = colIndex + 1;
+      while (nextTdIndex < tds.length) {
+        const targetTd = tds[nextTdIndex];
+        const input = targetTd?.querySelector('input:not([readOnly])') as HTMLInputElement | null;
+        if (input) {
+          input.focus();
+          try { input.select(); } catch (err) {}
+          break;
+        }
+        nextTdIndex++;
+      }
     }
   };
 

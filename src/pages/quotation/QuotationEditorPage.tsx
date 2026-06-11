@@ -221,6 +221,127 @@ export default function QuotationEditorPage() {
     return { q, its };
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
+    const target = e.target as HTMLElement;
+
+    if (e.key === 'Enter') {
+      if (target.tagName.toLowerCase() === 'textarea' && e.shiftKey) {
+        return; // Let Shift+Enter add a newline
+      }
+      e.preventDefault();
+      addRow();
+      setTimeout(() => {
+        const tbody = target.closest('tbody');
+        if (!tbody) return;
+        const trs = Array.from(tbody.querySelectorAll('tr'));
+        const lastTr = trs[trs.length - 1];
+        const firstInput = lastTr?.querySelector('textarea:not([readOnly]), input:not([readOnly])') as HTMLElement | null;
+        if (firstInput) {
+          firstInput.focus();
+          if ('select' in firstInput && typeof (firstInput as any).select === 'function') {
+            try { (firstInput as any).select(); } catch (err) {}
+          }
+        }
+      }, 50);
+      return;
+    }
+
+    if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      return;
+    }
+
+    const td = target.closest('td');
+    const tr = target.closest('tr');
+    if (!td || !tr) return;
+
+    const tbody = tr.closest('tbody');
+    if (!tbody) return;
+
+    const trs = Array.from(tbody.querySelectorAll('tr'));
+    const rowIndex = trs.indexOf(tr);
+    const tds = Array.from(tr.querySelectorAll('td'));
+    const colIndex = tds.indexOf(td);
+
+    if (e.key === 'ArrowUp') {
+      if (rowIndex > 0) {
+        e.preventDefault();
+        const prevTr = trs[rowIndex - 1];
+        const targetTd = prevTr.querySelectorAll('td')[colIndex];
+        const input = targetTd?.querySelector('textarea:not([readOnly]), input:not([readOnly])') as HTMLInputElement | HTMLTextAreaElement | null;
+        if (input) {
+          input.focus();
+          try { input.select(); } catch (err) {}
+        }
+      }
+    } else if (e.key === 'ArrowDown') {
+      if (rowIndex < trs.length - 1) {
+        e.preventDefault();
+        const nextTr = trs[rowIndex + 1];
+        const targetTd = nextTr.querySelectorAll('td')[colIndex];
+        const input = targetTd?.querySelector('textarea:not([readOnly]), input:not([readOnly])') as HTMLInputElement | HTMLTextAreaElement | null;
+        if (input) {
+          input.focus();
+          try { input.select(); } catch (err) {}
+        }
+      }
+    } else if (e.key === 'ArrowLeft') {
+      let atStart = false;
+      try {
+        const selStart = (target as HTMLInputElement).selectionStart;
+        if (selStart !== null) {
+          atStart = selStart === 0;
+        } else {
+          atStart = true;
+        }
+      } catch (err) {
+        atStart = true;
+      }
+      
+      if (!atStart) return;
+      
+      e.preventDefault();
+      let prevTdIndex = colIndex - 1;
+      while (prevTdIndex >= 0) {
+        const targetTd = tds[prevTdIndex];
+        const input = targetTd?.querySelector('textarea:not([readOnly]), input:not([readOnly])') as HTMLInputElement | HTMLTextAreaElement | null;
+        if (input) {
+          input.focus();
+          try { input.select(); } catch (err) {}
+          break;
+        }
+        prevTdIndex--;
+      }
+    } else if (e.key === 'ArrowRight') {
+      let atEnd = false;
+      try {
+        const selEnd = (target as HTMLInputElement).selectionEnd;
+        const valLen = (target as HTMLInputElement).value.length;
+        if (selEnd !== null) {
+          atEnd = selEnd === valLen;
+        } else {
+          atEnd = true;
+        }
+      } catch (err) {
+        atEnd = true;
+      }
+      
+      if (!atEnd) return;
+
+      e.preventDefault();
+      let nextTdIndex = colIndex + 1;
+      while (nextTdIndex < tds.length) {
+        const targetTd = tds[nextTdIndex];
+        const input = targetTd?.querySelector('textarea:not([readOnly]), input:not([readOnly])') as HTMLInputElement | HTMLTextAreaElement | null;
+        if (input) {
+          input.focus();
+          try { input.select(); } catch (err) {}
+          break;
+        }
+        nextTdIndex++;
+      }
+    }
+  };
+
   const handleSave = async () => {
     if (!form.customerName.trim()) {
       toast({ title: "Error", description: "Customer is required", variant: "destructive" });
@@ -429,19 +550,21 @@ export default function QuotationEditorPage() {
                     <Textarea
                       rows={2}
                       value={it.description}
+                      onKeyDown={handleKeyDown}
                       onChange={(e) => setItem(idx, { description: e.target.value })}
-                      placeholder="Item description (multiline supported)"
+                      placeholder="Item description (Shift+Enter for newline)"
                       className="min-h-[44px]"
                     />
                   </td>
                   <td className="px-2 py-1 space-y-1 align-top">
-                    <Input value={it.qty} onChange={(e) => setItem(idx, { qty: e.target.value })} placeholder="1 set" />
+                    <Input value={it.qty} onKeyDown={handleKeyDown} onChange={(e) => setItem(idx, { qty: e.target.value })} placeholder="1 set" />
                   </td>
                   <td className="px-2 py-1 space-y-1 align-top">
                     <Input
                       type="number"
                       step="0.01"
                       value={it.rate || ""}
+                      onKeyDown={handleKeyDown}
                       onChange={(e) => setItem(idx, { rate: parseFloat(e.target.value) || 0 })}
                       className="text-right"
                     />
