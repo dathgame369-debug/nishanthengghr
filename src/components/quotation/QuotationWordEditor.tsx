@@ -108,6 +108,7 @@ export function QuotationWordEditor({ form, items, onChange }: Props) {
     company.name,
     company.address,
     company.phone,
+    company.gstNumber,
   ]);
 
   /* ── Sync the free-text maps when items are added / removed ─────────────── */
@@ -306,6 +307,11 @@ export function QuotationWordEditor({ form, items, onChange }: Props) {
                     {company.phone && (
                       <div style={{ fontSize: 10, color: "#333", fontFamily: FF }}>
                         {company.phone}
+                      </div>
+                    )}
+                    {company.gstNumber && (
+                      <div style={{ fontSize: 10, color: "#333", fontFamily: FF, fontWeight: 700, marginTop: 1 }}>
+                        GSTIN: {company.gstNumber}
                       </div>
                     )}
                   </div>

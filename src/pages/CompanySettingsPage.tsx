@@ -125,6 +125,18 @@ export default function CompanySettingsPage() {
                 onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
             </div>
           </div>
+          <div>
+            <label className="text-sm font-medium block mb-1">GST Number</label>
+            <Input
+              value={form.gstNumber ?? ''}
+              onChange={e => setForm(f => ({ ...f, gstNumber: e.target.value.toUpperCase() }))}
+              placeholder="e.g. 33AABCN1234F1ZX"
+              maxLength={15}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Your company's GSTIN — will appear on every quotation.
+            </p>
+          </div>
         </div>
 
         {/* Payslip Components */}

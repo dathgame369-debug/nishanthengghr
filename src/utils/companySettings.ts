@@ -3,6 +3,7 @@ export interface CompanyInfo {
   address: string;
   phone: string;
   email: string;
+  gstNumber: string;
   logoDataUrl: string;
 }
 
@@ -25,6 +26,7 @@ export const DEFAULT_COMPANY: CompanyInfo = {
     '102/1, Subbanaickenpalayam School Street, Chinnavedampatti, Coimbatore, Tamil Nadu 641049',
   phone: '0422-2532130 / 94426 32130',
   email: '',
+  gstNumber: '',
   logoDataUrl: '',
 };
 
