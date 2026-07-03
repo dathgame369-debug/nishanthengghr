@@ -12,27 +12,35 @@ function money(n: number): string {
 }
 
 /** Returns the advance balance as it was right after this payslip's month deduction. */
-function getBalanceAtMonth(adv: Advance, entryMonth: string, entryYear: number): number {
+function getBalanceAtMonth(employeeId: string, entryMonth: string, entryYear: number, allPayroll: PayrollEntry[] = [], allAdvances: Advance[] = []): number {
   const entryMonthIdx = MONTHS.indexOf(entryMonth);
-  const deductedSoFar = (adv.deductionHistory || []).reduce((sum: number, d: { month: string; amount: number }) => {
-    const parts = (d.month || '').split(' ');
-    const dMonthIdx = MONTHS.indexOf(parts[0]);
-    const dYear = parseInt(parts[1], 10);
-    if (!isNaN(dYear) && dMonthIdx !== -1) {
-      if (dYear < entryYear || (dYear === entryYear && dMonthIdx <= entryMonthIdx)) {
-        return sum + (d.amount || 0);
-      }
+  const eYear = Number(entryYear);
+
+  // Sum all advances given to this employee (no date restriction needed since deductions perfectly offset them)
+  const totalAdvances = allAdvances
+    .filter(a => a.employeeId === employeeId)
+    .reduce((sum, a) => sum + (a.advanceAmount || 0), 0);
+
+  // Sum all deductions for this employee up to this month
+  const deductedSoFar = allPayroll.reduce((sum, p) => {
+    if (p.employeeId !== employeeId) return sum;
+    
+    const pYear = Number(p.year) || eYear;
+    const pMonthIdx = MONTHS.indexOf(p.month);
+    
+    if (pYear < eYear || (pYear === eYear && pMonthIdx <= entryMonthIdx)) {
+      return sum + (p.advanceDeduction || 0);
     }
     return sum;
   }, 0);
-  return Math.max(0, (adv.advanceAmount || 0) - deductedSoFar);
+  
+  return Math.max(0, totalAdvances - deductedSoFar);
 }
 
-export function generatePayslipPDF(entry: PayrollEntry, employees: Employee[], advances: Advance[] = []) {
+export function generatePayslipPDF(entry: PayrollEntry, employees: Employee[], advances: Advance[] = [], allPayroll: PayrollEntry[] = []) {
   const emp = employees.find((e) => e.id === entry.employeeId);
   const doc = new jsPDF("p", "mm", "a4");
-  const adv = advances.find((a) => a.employeeId === entry.employeeId);
-  renderPayslip(doc, entry, emp, 15, false, adv);
+  renderPayslip(doc, entry, emp, 15, false, allPayroll, advances);
   doc.save(`Payslip_${entry.employeeId}_${entry.month}_${entry.year || ""}.pdf`);
 }
 
@@ -43,14 +51,14 @@ export function generateMultiPayslipPDF(
   employees: Employee[],
   advances: Advance[] = [],
   filename = "Payslips.pdf",
+  allPayroll: PayrollEntry[] = []
 ) {
   if (entries.length === 0) return;
   const doc = new jsPDF("p", "mm", "a4");
   entries.forEach((entry, i) => {
     if (i > 0) doc.addPage();
     const emp = employees.find((e) => e.id === entry.employeeId);
-    const adv = advances.find((a) => a.employeeId === entry.employeeId);
-    renderPayslip(doc, entry, emp, 15, false, adv);
+    renderPayslip(doc, entry, emp, 15, false, allPayroll, advances);
   });
   doc.save(filename);
 }
@@ -60,6 +68,7 @@ export function generateBulkPayslipPDF(
   employees: Employee[],
   layout: "1" | "2" | "4" | "6",
   advances: Advance[] = [],
+  allPayroll: PayrollEntry[] = []
 ) {
   const doc = new jsPDF("p", "mm", "a4");
 
@@ -67,8 +76,7 @@ export function generateBulkPayslipPDF(
     entries.forEach((entry, i) => {
       if (i > 0) doc.addPage();
       const emp = employees.find((e) => e.id === entry.employeeId);
-      const adv = advances.find((a) => a.employeeId === entry.employeeId);
-      renderPayslip(doc, entry, emp, 15, false, adv);
+      renderPayslip(doc, entry, emp, 15, false, allPayroll, advances);
     });
   } else {
     const margin = 6;
@@ -95,8 +103,7 @@ export function generateBulkPayslipPDF(
       const x = margin + col * (slipW + gapX);
       const y = margin + row * (slipH + gapY);
       const emp = employees.find((e) => e.id === entry.employeeId);
-      const adv = advances.find((a) => a.employeeId === entry.employeeId);
-      renderPayslipMini(doc, entry, emp, x, y, slipW, slipH, adv);
+      renderPayslipMini(doc, entry, emp, x, y, slipW, slipH, allPayroll, advances);
     });
   }
 
@@ -111,7 +118,8 @@ function renderPayslipMini(
   y: number,
   w: number,
   h: number,
-  adv?: Advance,
+  allPayroll: PayrollEntry[] = [],
+  allAdvances: Advance[] = []
 ) {
   const calcLeaves = entry.noOfLeaves || 0;
   const leaveAmt = calcLeaves * (entry.monthlySalary / 26);
@@ -126,9 +134,12 @@ function renderPayslipMini(
   doc.rect(x, y, w, h);
 
   const headerH = 11;
-  doc.setFillColor(30, 58, 95);
+  doc.setFillColor(220, 234, 248);
   doc.rect(x, y, w, headerH, "F");
-  doc.setTextColor(255, 255, 255);
+  doc.setDrawColor(180, 210, 240);
+  doc.setLineWidth(0.3);
+  doc.rect(x, y, w, headerH);
+  doc.setTextColor(30, 58, 95);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.text((company.name || "").toUpperCase(), x + w / 2, y + 4, { align: "center" });
@@ -170,37 +181,35 @@ function renderPayslipMini(
   const tableTop = iy + 2;
 
   const earningsMiniRows = [
-    ["Monthly Salary", money(entry.monthlySalary), "", ""],
-    ["Present Days", entry.presentDays, "Present Amt", money(entry.presentAmount)],
-    ["Holidays", entry.holidays, "Holiday Amt", money(entry.holidayAmount)],
-    ["OT Hours", entry.otHours, "OT Amt", money(entry.otAmount)],
-    ["Welfare", money(entry.welfareAmount), "", ""],
-    ["Bonus", money(entry.bonus), "", ""],
-    [{ content: "TOTAL EARNINGS", colSpan: 3, styles: { halign: "right", fontStyle: "bold" } }, money(totalEarning)]
+    ["Monthly Salary",                        money(entry.monthlySalary)],
+    [`Present Days - ${entry.presentDays}`,   money(entry.presentAmount)],
+    [`Holidays - ${entry.holidays}`,          money(entry.holidayAmount)],
+    [`OT - ${entry.otHours} hrs`,            money(entry.otAmount)],
+    ["Welfare",                               money(entry.welfareAmount)],
+    ["Bonus",                                 money(entry.bonus)],
+    [{ content: "TOTAL EARNINGS", styles: { halign: "right", fontStyle: "bold" } }, money(totalEarning)]
   ];
 
   autoTable(doc, {
     startY: tableTop,
     head: [[
-      { content: "EARNINGS", colSpan: 2, styles: { halign: "left" } },
-      { content: "AMT", colSpan: 2, styles: { halign: "left" } },
+      { content: "EARNINGS", styles: { halign: "left" } },
+      { content: "AMT", styles: { halign: "right" } },
     ]],
     body: earningsMiniRows,
     theme: "grid",
-    styles: { fontSize: 5.5, cellPadding: 0.6, lineColor: [200, 200, 200] },
-    headStyles: { fillColor: [30, 58, 95], textColor: 255, fontSize: 5.5 },
+    styles: { fontSize: 5.5, cellPadding: 0.6, lineColor: [0, 0, 0], lineWidth: 0.2 },
+    headStyles: { fillColor: [220, 234, 248], textColor: [30, 58, 95], fontSize: 5.5, fontStyle: 'bold' },
     columnStyles: {
       0: { textColor: [80, 80, 80] },
       1: { halign: "right", fontStyle: "bold" },
-      2: { textColor: [80, 80, 80] },
-      3: { halign: "right", fontStyle: "bold" },
     },
     margin: { left: x + 2 },
     tableWidth: w - 4,
   });
 
   const deductionMiniTop = (doc as any).lastAutoTable.finalY + 1;
-  const miniBalanceAdv = adv ? getBalanceAtMonth(adv, entry.month, entry.year || new Date().getFullYear()) : 0;
+  const miniBalanceAdv = getBalanceAtMonth(entry.employeeId, entry.month, entry.year || new Date().getFullYear(), allPayroll, allAdvances);
 
   autoTable(doc, {
     startY: deductionMiniTop,
@@ -209,14 +218,13 @@ function renderPayslipMini(
       { content: "AMT", styles: { halign: "right" } },
     ]],
     body: [
-
       ["Adv Ded.", money(entry.advanceDeduction)],
       [{ content: "TOTAL DEDS", styles: { halign: "right", fontStyle: "bold" } }, money(totalDeductionDisplay)],
       ["Balance Advance", money(miniBalanceAdv)],
     ],
     theme: "grid",
-    styles: { fontSize: 5.5, cellPadding: 0.6, lineColor: [200, 200, 200] },
-    headStyles: { fillColor: [120, 35, 35], textColor: 255, fontSize: 5.5 },
+    styles: { fontSize: 5.5, cellPadding: 0.6, lineColor: [0, 0, 0], lineWidth: 0.2 },
+    headStyles: { fillColor: [253, 232, 232], textColor: [122, 35, 35], fontSize: 5.5, fontStyle: 'bold' },
     columnStyles: {
       0: { textColor: [80, 80, 80] },
       1: { halign: "right", fontStyle: "bold" },
@@ -227,9 +235,12 @@ function renderPayslipMini(
 
   const ny = (doc as any).lastAutoTable.finalY + 1.5;
   const netH = 6;
-  doc.setFillColor(30, 58, 95);
+  doc.setFillColor(220, 234, 248);
   doc.rect(x + 2, ny, w - 4, netH, "F");
-  doc.setTextColor(255, 255, 255);
+  doc.setDrawColor(180, 210, 240);
+  doc.setLineWidth(0.3);
+  doc.rect(x + 2, ny, w - 4, netH);
+  doc.setTextColor(30, 58, 95);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.text("NET SALARY", x + 5, ny + 4);
@@ -302,7 +313,8 @@ function renderPayslip(
   emp: Employee | undefined,
   startY: number,
   compact = false,
-  adv?: Advance,
+  allPayroll: PayrollEntry[] = [],
+  allAdvances: Advance[] = []
 ) {
   const x = 15;
   const w = 180;
@@ -323,10 +335,13 @@ function renderPayslip(
 
   // Header band
   const headerH = compact ? 18 : 22;
-  doc.setFillColor(30, 58, 95);
+  doc.setFillColor(220, 234, 248);
   doc.rect(x, y, w, headerH, "F");
+  doc.setDrawColor(180, 210, 240);
+  doc.setLineWidth(0.3);
+  doc.rect(x, y, w, headerH);
 
-  doc.setTextColor(255, 255, 255);
+  doc.setTextColor(30, 58, 95);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(compact ? 12 : 15);
   doc.text((company.name || "").toUpperCase(), x + w / 2, y + (compact ? 7 : 8.5), { align: "center" });
@@ -395,32 +410,30 @@ function renderPayslip(
   };
 
   const earningsRows = [
-    ["Monthly Salary", formatCell(entry.monthlySalary), "", ""],
-    ["Present Days", formatCell(entry.presentDays, false), "Present Amount", formatCell(entry.presentAmount)],
-    ["Holidays", formatCell(entry.holidays, false), "Holiday Amount", formatCell(entry.holidayAmount)],
-    ["OT Hours", formatCell(entry.otHours, false), "OT Amount", formatCell(entry.otAmount)],
-    ["Welfare", formatCell(entry.welfareAmount), "", ""],
-    ["Bonus", formatCell(entry.bonus), "", ""],
-    [{ content: "TOTAL EARNINGS", colSpan: 3, styles: { halign: "right", fontStyle: "bold" } }, formatCell(totalEarning)],
+    ["Monthly Salary",                        formatCell(entry.monthlySalary)],
+    [`Present Days - ${entry.presentDays}`,   formatCell(entry.presentAmount)],
+    [`Holidays - ${entry.holidays}`,          formatCell(entry.holidayAmount)],
+    [`OT - ${entry.otHours} hrs`,            formatCell(entry.otAmount)],
+    ["Welfare",                               formatCell(entry.welfareAmount)],
+    ["Bonus",                                 formatCell(entry.bonus)],
+    [{ content: "TOTAL EARNINGS", styles: { halign: "right", fontStyle: "bold" } }, formatCell(totalEarning)],
   ];
 
   autoTable(doc, {
     startY: tableTop,
     head: [
       [
-        { content: "EARNINGS", colSpan: 2, styles: { halign: "left" } },
-        { content: "AMOUNT", colSpan: 2, styles: { halign: "left" } },
+        { content: "EARNINGS", styles: { halign: "left" } },
+        { content: "AMOUNT", styles: { halign: "right" } },
       ]
     ],
     body: earningsRows,
     theme: "grid",
-    styles: { fontSize: compact ? 7.5 : 8.5, cellPadding: compact ? 1.5 : 2, lineColor: [200, 200, 200] },
-    headStyles: { fillColor: [30, 58, 95], textColor: 255, fontSize: compact ? 7.5 : 8.5 },
+    styles: { fontSize: compact ? 7.5 : 8.5, cellPadding: compact ? 1.5 : 2, lineColor: [0, 0, 0], lineWidth: 0.3 },
+    headStyles: { fillColor: [220, 234, 248], textColor: [30, 58, 95], fontSize: compact ? 7.5 : 8.5, fontStyle: 'bold' },
     columnStyles: {
       0: { textColor: [80, 80, 80] },
       1: { halign: "right", fontStyle: "bold" },
-      2: { textColor: [80, 80, 80] },
-      3: { halign: "right", fontStyle: "bold" },
     },
     margin: { left: x + 2 },
     tableWidth: w - 4,
@@ -429,7 +442,7 @@ function renderPayslip(
   y = (doc as any).lastAutoTable.finalY + 3;
 
   // DEDUCTIONS table
-  const balanceAdvance = adv ? getBalanceAtMonth(adv, entry.month, entry.year || new Date().getFullYear()) : 0;
+  const balanceAdvance = getBalanceAtMonth(entry.employeeId, entry.month, entry.year || new Date().getFullYear(), allPayroll, allAdvances);
   const deductionsRows = [
 
     ["Advance Deduction", formatCell(entry.advanceDeduction)],
@@ -447,8 +460,8 @@ function renderPayslip(
     ],
     body: deductionsRows,
     theme: "grid",
-    styles: { fontSize: compact ? 7.5 : 8.5, cellPadding: compact ? 1.5 : 2, lineColor: [200, 200, 200] },
-    headStyles: { fillColor: [120, 35, 35], textColor: 255, fontSize: compact ? 7.5 : 8.5 },
+    styles: { fontSize: compact ? 7.5 : 8.5, cellPadding: compact ? 1.5 : 2, lineColor: [0, 0, 0], lineWidth: 0.3 },
+    headStyles: { fillColor: [253, 232, 232], textColor: [122, 35, 35], fontSize: compact ? 7.5 : 8.5, fontStyle: 'bold' },
     columnStyles: {
       0: { textColor: [80, 80, 80] },
       1: { halign: "right", fontStyle: "bold" },
@@ -461,9 +474,12 @@ function renderPayslip(
 
   // Net Salary band
   const netH = compact ? 10 : 12;
-  doc.setFillColor(30, 58, 95);
+  doc.setFillColor(220, 234, 248);
   doc.rect(x + 2, y, w - 4, netH, "F");
-  doc.setTextColor(255, 255, 255);
+  doc.setDrawColor(180, 210, 240);
+  doc.setLineWidth(0.3);
+  doc.rect(x + 2, y, w - 4, netH);
+  doc.setTextColor(30, 58, 95);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(compact ? 10 : 12);
   doc.text("NET SALARY", x + 6, y + (compact ? 6.5 : 8));

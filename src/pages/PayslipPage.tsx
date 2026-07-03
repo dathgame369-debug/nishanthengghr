@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { useHR } from '@/context/HRContext';
+import { useHR, advFromRow } from '@/context/HRContext';
 import { supabase } from '@/integrations/supabase/client';
 import { MONTHS, getYearOptions } from '@/types/hr';
 import { Button } from '@/components/ui/button';
@@ -53,18 +53,12 @@ export default function PayslipPage() {
     if (!session) return;
     supabase
       .from('advances')
-      .select('id,employee_id,employee_name,advance_date,advance_amount,deduction_type,monthly_deduction_amount,total_deducted,remaining_balance,notes,status,deduction_history')
+      .select('*')
       .then(({ data, error }) => {
         if (!error && data) {
-          setAllAdvances(data.map((r: any) => ({
-            id: r.id, employeeId: r.employee_id, employeeName: r.employee_name,
-            advanceDate: r.advance_date || '', advanceAmount: Number(r.advance_amount),
-            deductionType: (r.deduction_type as 'Manual' | 'EMI') || 'Manual',
-            monthlyDeductionAmount: Number(r.monthly_deduction_amount),
-            totalDeducted: Number(r.total_deducted), remainingBalance: Number(r.remaining_balance),
-            notes: r.notes || '', status: (r.status as 'Active' | 'Closed') || 'Active',
-            deductionHistory: Array.isArray(r.deduction_history) ? r.deduction_history : [],
-          })));
+          setAllAdvances(data.map(advFromRow));
+        } else if (error) {
+          console.error("Failed to fetch allAdvances:", error);
         }
       });
   }, [session]);
@@ -145,7 +139,7 @@ export default function PayslipPage() {
   const selectAllEmployees = () => setEmpIds(employees.map(e => e.id));
 
   const downloadPDF = () => {
-    generateBulkPayslipPDF(filteredEntries, employees, bulkLayout, allAdvances);
+    generateBulkPayslipPDF(filteredEntries, employees, bulkLayout, allAdvances, allPayroll);
   };
 
   return (
@@ -259,7 +253,7 @@ export default function PayslipPage() {
           </div>
           <div className={previewMode === 'compact' ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' : 'space-y-6 max-w-2xl mx-auto'}>
             {pagedEntries.map(entry => (
-              <PayslipTemplate key={entry.id} entry={entry} compact={previewMode === 'compact'} advances={allAdvances} />
+              <PayslipTemplate key={entry.id} entry={entry} compact={previewMode === 'compact'} advances={allAdvances} allPayroll={allPayroll} />
             ))}
           </div>
           <TablePagination

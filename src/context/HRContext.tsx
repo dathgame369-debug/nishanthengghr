@@ -73,7 +73,7 @@ const advToRow = (a: Advance) => ({
   remaining_balance: a.remainingBalance, notes: a.notes, status: a.status,
   deduction_history: a.deductionHistory as any,
 });
-const advFromRow = (r: any): Advance => ({
+export const advFromRow = (r: any): Advance => ({
   id: r.id, employeeId: r.employee_id, employeeName: r.employee_name,
   advanceDate: r.advance_date || '', advanceAmount: Number(r.advance_amount),
   deductionType: (r.deduction_type as 'Manual' | 'EMI') || 'Manual',

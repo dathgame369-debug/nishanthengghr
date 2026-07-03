@@ -5,35 +5,44 @@ import { buildPayslipBreakdown } from "@/utils/payslipBreakdown";
 import { useCompanyInfo } from "@/hooks/useCompanySettings";
 
 /** Returns the advance balance as it was right after this payslip's month deduction. */
-function getBalanceAtMonth(adv: Advance, entryMonth: string, entryYear: number): number {
+function getBalanceAtMonth(employeeId: string, entryMonth: string, entryYear: number, allPayroll: PayrollEntry[] = [], allAdvances: Advance[] = []): number {
   const entryMonthIdx = MONTHS.indexOf(entryMonth);
-  const deductedSoFar = (adv.deductionHistory || []).reduce((sum, d) => {
-    const parts = (d.month || '').split(' ');
-    const dMonthIdx = MONTHS.indexOf(parts[0]);
-    const dYear = parseInt(parts[1], 10);
-    if (!isNaN(dYear) && dMonthIdx !== -1) {
-      if (dYear < entryYear || (dYear === entryYear && dMonthIdx <= entryMonthIdx)) {
-        return sum + (d.amount || 0);
-      }
+  const eYear = Number(entryYear);
+
+  // Sum all advances given to this employee (no date restriction needed since deductions perfectly offset them)
+  const totalAdvances = allAdvances
+    .filter(a => a.employeeId === employeeId)
+    .reduce((sum, a) => sum + (a.advanceAmount || 0), 0);
+
+  // Sum all deductions for this employee up to this month
+  const deductedSoFar = allPayroll.reduce((sum, p) => {
+    if (p.employeeId !== employeeId) return sum;
+    
+    const pYear = Number(p.year) || eYear;
+    const pMonthIdx = MONTHS.indexOf(p.month);
+    
+    if (pYear < eYear || (pYear === eYear && pMonthIdx <= entryMonthIdx)) {
+      return sum + (p.advanceDeduction || 0);
     }
     return sum;
   }, 0);
-  return Math.max(0, (adv.advanceAmount || 0) - deductedSoFar);
+  
+  return Math.max(0, totalAdvances - deductedSoFar);
 }
 
 interface PayslipProps {
   entry: PayrollEntry;
   compact?: boolean;
   advances?: Advance[];
+  allPayroll?: PayrollEntry[];
 }
 
-export default function PayslipTemplate({ entry, compact = false, advances: advancesProp }: PayslipProps) {
+export default function PayslipTemplate({ entry, compact = false, advances: advancesProp, allPayroll }: PayslipProps) {
   const { employees, advances: contextAdvances } = useHR();
   const [company] = useCompanyInfo();
   const emp = employees.find((e) => e.id === entry.employeeId);
   // Use the passed-in advances (all records) if provided; fall back to context (paginated)
   const advancesList = advancesProp ?? contextAdvances;
-  const adv = advancesList.find((a) => a.employeeId === entry.employeeId);
   
   const calcLeaves = entry.noOfLeaves || 0;
   const leaveAmt = calcLeaves * (entry.monthlySalary / 26);
@@ -74,60 +83,33 @@ export default function PayslipTemplate({ entry, compact = false, advances: adva
       </div>
 
       {/* Earnings Section */}
-      <div className="border border-border rounded-lg overflow-hidden mb-3">
+      <div className="border border-black rounded-lg overflow-hidden mb-3">
         <table className={`w-full ${text}`}>
           <thead>
-            <tr className="bg-[#1e3a5f] text-white">
-              <th className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-left font-semibold tracking-wide`} colSpan={2}>EARNINGS</th>
-              <th className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-left font-semibold tracking-wide border-l border-white/20`} colSpan={2}>AMOUNT</th>
+            <tr className="bg-[#dceaf8] text-[#1e3a5f] border-b border-black">
+              <th className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-left font-semibold tracking-wide`}>EARNINGS</th>
+              <th className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right font-semibold tracking-wide`}>AMOUNT</th>
             </tr>
           </thead>
           <tbody>
             {[
-              ['Monthly Salary', entry.monthlySalary],
-              ['Present Days', entry.presentDays, 'Present Amount', entry.presentAmount],
-              ['Holidays', entry.holidays, 'Holiday Amount', entry.holidayAmount],
-              ['OT Hours', entry.otHours, 'OT Amount', entry.otAmount],
-              ['Welfare', entry.welfareAmount],
-              ['Bonus', entry.bonus],
-            ].map((row, i) => {
-              const label = row[0] as string;
-
-              // Identifies count columns that should be displayed as pure integers
-              const isCountColumn =
-                label.includes('Days') ||
-                label.includes('Hours') ||
-                label.includes('Leaves') ||
-                label === 'Holidays';
-
-              return (
-                <tr key={i} className="border-b border-border last:border-0">
-                  <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-muted-foreground`} colSpan={1}>{row[0]}</td>
-                  <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right font-mono`}>
-                    {typeof row[1] === 'number' && isCountColumn
-                      ? row[1]
-                      : formatCurrency(row[1] as number)
-                    }
-                  </td>
-                  {row.length > 2 ? (
-                    <>
-                      <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-muted-foreground border-l border-border`}>{row[2]}</td>
-                      <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right font-mono`}>
-                        {formatCurrency(row[3] as number)}
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} border-l border-border`}></td>
-                      <td className={`${compact ? "px-2 py-1" : "px-3 py-2"}`}></td>
-                    </>
-                  )}
-                </tr>
-              );
-            })}
-            <tr className="bg-primary/5 font-bold">
-              <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right`} colSpan={3}>TOTAL EARNINGS</td>
-              <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right font-mono text-primary`}>
+              ['Monthly Salary',                               entry.monthlySalary,              true],
+              [`Present Days - ${entry.presentDays}`,          entry.presentAmount,               true],
+              [`Holidays - ${entry.holidays}`,                 entry.holidayAmount,               true],
+              [`OT - ${entry.otHours} hrs`,                   entry.otAmount,                    true],
+              ['Welfare',                                      entry.welfareAmount,               true],
+              ['Bonus',                                        entry.bonus,                       true],
+            ].map(([label, value, isCurrency], i) => (
+              <tr key={i} className="border-b border-black last:border-0">
+                <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-muted-foreground`}>{label as string}</td>
+                <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right font-mono`}>
+                  {isCurrency ? formatCurrency(value as number) : value as number}
+                </td>
+              </tr>
+            ))}
+            <tr className="bg-[#dceaf8]/60 font-bold border-t border-black">
+              <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right`}>TOTAL EARNINGS</td>
+              <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right font-mono text-[#1e3a5f]`}>
                 {formatCurrency(totalEarning)}
               </td>
             </tr>
@@ -136,32 +118,31 @@ export default function PayslipTemplate({ entry, compact = false, advances: adva
       </div>
 
       {/* Deductions Section */}
-      <div className="border border-border rounded-lg overflow-hidden mb-3">
+      <div className="border border-black rounded-lg overflow-hidden mb-3">
         <table className={`w-full ${text}`}>
           <thead>
-            <tr className="bg-[#7a2323] text-white">
+            <tr className="bg-[#fde8e8] text-[#7a2323] border-b border-black">
               <th className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-left font-semibold tracking-wide`}>DEDUCTIONS</th>
               <th className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right font-semibold tracking-wide`}>AMOUNT</th>
             </tr>
           </thead>
           <tbody>
-
-            <tr className="border-b border-border">
+            <tr className="border-b border-black">
               <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-muted-foreground`}>Advance Deduction</td>
               <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right font-mono`}>{formatCurrency(entry.advanceDeduction)}</td>
             </tr>
-            <tr className="bg-destructive/5 font-bold border-b border-border">
+            <tr className="bg-[#fde8e8]/40 font-bold border-b border-black">
               <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right`}>TOTAL DEDUCTIONS</td>
-              <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right font-mono text-destructive`}>
+              <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right font-mono text-[#7a2323]`}>
                 {formatCurrency(totalDeductionDisplay)}
               </td>
             </tr>
-            <tr className="last:border-0">
+            <tr>
               <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-muted-foreground`}>
                 Balance Advance <span className="text-[9px] opacity-60">(Advance Mgmt/Balance)</span>
               </td>
               <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right font-mono`}>
-                {formatCurrency(adv ? getBalanceAtMonth(adv, entry.month, entry.year || new Date().getFullYear()) : 0)}
+                {formatCurrency(getBalanceAtMonth(entry.employeeId, entry.month, entry.year || new Date().getFullYear(), allPayroll, advancesList))}
               </td>
             </tr>
           </tbody>
