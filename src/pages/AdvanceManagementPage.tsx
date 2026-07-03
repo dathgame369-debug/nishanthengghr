@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Wallet, Plus, Pencil, Trash2 } from 'lucide-react';
 import { formatCurrency } from '@/types/hr';
 import { TablePagination } from '@/components/TablePagination';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function AdvanceManagementPage() {
   const { employees, advances, totalAdvances, fetchAdvances, setAdvances } = useHR();
@@ -21,9 +22,27 @@ export default function AdvanceManagementPage() {
   const [deleteAdv, setDeleteAdv] = useState<Advance | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  // Live totals computed from actual payroll records (keyed by employeeId)
+  const [payrollTotals, setPayrollTotals] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    supabase
+      .from('payroll')
+      .select('employee_id,advance_deduction')
+      .then(({ data }) => {
+        if (!data) return;
+        const totals: Record<string, number> = {};
+        data.forEach((r: any) => {
+          const empId = r.employee_id as string;
+          totals[empId] = (totals[empId] || 0) + Number(r.advance_deduction || 0);
+        });
+        setPayrollTotals(totals);
+      });
+  }, [advances]); // re-run whenever advances list refreshes
   const [form, setForm] = useState({
     employeeId: '', advanceDate: '', advanceAmount: '', deductionType: 'Manual' as 'Manual' | 'EMI',
-    monthlyDeductionAmount: '', notes: '',
+    notes: '',
   });
 
   const totalPages = Math.max(1, Math.ceil(totalAdvances / pageSize));
@@ -46,12 +65,12 @@ export default function AdvanceManagementPage() {
     const adv: Advance = {
       id: `ADV${Date.now()}`, employeeId: emp.id, employeeName: emp.name,
       advanceDate: form.advanceDate, advanceAmount: amt,
-      deductionType: form.deductionType, monthlyDeductionAmount: parseFloat(form.monthlyDeductionAmount) || 0,
+      deductionType: form.deductionType, monthlyDeductionAmount: 0,
       totalDeducted: 0, remainingBalance: amt, notes: form.notes, status: 'Active', deductionHistory: [],
     };
     setAdvances(prev => [...prev, adv]);
     setShowAdd(false);
-    setForm({ employeeId: '', advanceDate: '', advanceAmount: '', deductionType: 'Manual', monthlyDeductionAmount: '', notes: '' });
+    setForm({ employeeId: '', advanceDate: '', advanceAmount: '', deductionType: 'Manual', notes: '' });
     toast({ title: 'Advance Added', description: `₹${amt.toLocaleString()} advance for ${emp.name}` });
     doFetch();
   };
@@ -100,7 +119,7 @@ export default function AdvanceManagementPage() {
             <TableRow className="bg-muted/50">
               <TableHead>Emp ID</TableHead><TableHead>Name</TableHead><TableHead>Date</TableHead>
               <TableHead className="text-right">Amount</TableHead><TableHead>Type</TableHead>
-              <TableHead className="text-right">Monthly Ded.</TableHead><TableHead className="text-right">Total Ded.</TableHead>
+              <TableHead className="text-right">Total Ded.</TableHead>
               <TableHead className="text-right">Balance</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -112,9 +131,8 @@ export default function AdvanceManagementPage() {
                 <TableCell>{adv.advanceDate ? adv.advanceDate.split('-').reverse().join('-') : '—'}</TableCell>
                 <TableCell className="text-right font-mono">{formatCurrency(adv.advanceAmount)}</TableCell>
                 <TableCell><Badge variant="outline">{adv.deductionType}</Badge></TableCell>
-                <TableCell className="text-right font-mono">{formatCurrency(adv.monthlyDeductionAmount)}</TableCell>
-                <TableCell className="text-right font-mono">{formatCurrency(adv.totalDeducted)}</TableCell>
-                <TableCell className="text-right font-mono">{formatCurrency(adv.remainingBalance)}</TableCell>
+                <TableCell className="text-right font-mono font-semibold">{formatCurrency(payrollTotals[adv.employeeId] ?? adv.totalDeducted)}</TableCell>
+                <TableCell className="text-right font-mono font-semibold text-primary">{formatCurrency(Math.max(0, adv.advanceAmount - (payrollTotals[adv.employeeId] ?? adv.totalDeducted)))}</TableCell>
                 <TableCell>
                   <Badge className={adv.status === 'Active' ? 'bg-warning text-warning-foreground' : 'bg-success text-success-foreground'}>
                     {adv.status}
@@ -129,7 +147,7 @@ export default function AdvanceManagementPage() {
               </TableRow>
             ))}
             {advances.length === 0 && (
-              <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">No advances recorded</TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No advances recorded</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
@@ -162,7 +180,6 @@ export default function AdvanceManagementPage() {
                 <SelectContent><SelectItem value="Manual">Manual</SelectItem><SelectItem value="EMI">EMI / Monthly</SelectItem></SelectContent>
               </Select>
             </div>
-            <div><label className="text-sm font-medium block mb-1">Monthly Deduction (₹)</label><Input type="number" min="0" value={form.monthlyDeductionAmount} onChange={e => setForm(f => ({ ...f, monthlyDeductionAmount: e.target.value }))} /></div>
             <div><label className="text-sm font-medium block mb-1">Notes</label><Input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Reason for advance" /></div>
             <Button onClick={handleAdd} className="w-full">Add Advance</Button>
           </div>
@@ -191,7 +208,6 @@ export default function AdvanceManagementPage() {
                   Already deducted: {formatCurrency(editAdv.totalDeducted)} • Remaining: {formatCurrency(Math.max(0, editAdv.advanceAmount - editAdv.totalDeducted))}
                 </p>
               </div>
-              <div><label className="text-sm font-medium block mb-1">Monthly Deduction</label><Input type="number" value={editAdv.monthlyDeductionAmount} onChange={e => setEditAdv({ ...editAdv, monthlyDeductionAmount: parseFloat(e.target.value) || 0 })} /></div>
               <div><label className="text-sm font-medium block mb-1">Notes</label><Input value={editAdv.notes} onChange={e => setEditAdv({ ...editAdv, notes: e.target.value })} /></div>
               <div><label className="text-sm font-medium block mb-1">Status</label>
                 <Select value={editAdv.status} onValueChange={v => setEditAdv({ ...editAdv, status: v as 'Active' | 'Closed' })}>

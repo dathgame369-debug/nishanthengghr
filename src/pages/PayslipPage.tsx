@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useHR } from '@/context/HRContext';
+import { supabase } from '@/integrations/supabase/client';
 import { MONTHS, getYearOptions } from '@/types/hr';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,8 +15,59 @@ import {
 } from '@/utils/pdfExport';
 import { TablePagination } from '@/components/TablePagination';
 
+// Mapper: DB row → PayrollEntry (mirrors HRContext payFromRow)
+const payFromRow = (r: any) => ({
+  id: r.id, employeeId: r.employee_id, employeeName: r.employee_name,
+  date: r.date || '', month: r.month, year: r.year, modeOfPayment: r.mode_of_payment || 'Bank Transfer',
+  monthlySalary: Number(r.monthly_salary), presentDays: Number(r.present_days),
+  presentAmount: Number(r.present_amount), holidays: Number(r.holidays),
+  holidayAmount: Number(r.holiday_amount), otHours: Number(r.ot_hours),
+  otAmount: Number(r.ot_amount), welfareAmount: Number(r.welfare_amount),
+  advanceDeduction: Number(r.advance_deduction), bonus: Number(r.bonus),
+  netPayable: Math.round(Number(r.net_payable)), noOfLeaves: Number(r.no_of_leaves || 0),
+});
+
 export default function PayslipPage() {
-  const { employees, payroll, advances } = useHR();
+  const { employees, session } = useHR();
+
+  // Fetch ALL payroll records for client-side filtering (context only holds one page)
+  const [allPayroll, setAllPayroll] = useState<any[]>([]);
+  const [loadingPayroll, setLoadingPayroll] = useState(false);
+
+  useEffect(() => {
+    if (!session) return;
+    setLoadingPayroll(true);
+    supabase
+      .from('payroll')
+      .select('*')
+      .order('date', { ascending: false })
+      .then(({ data, error }) => {
+        if (!error && data) setAllPayroll(data.map(payFromRow));
+        setLoadingPayroll(false);
+      });
+  }, [session]);
+
+  // Fetch ALL advances so balance shows correctly (context only holds one page)
+  const [allAdvances, setAllAdvances] = useState<any[]>([]);
+  useEffect(() => {
+    if (!session) return;
+    supabase
+      .from('advances')
+      .select('id,employee_id,employee_name,advance_date,advance_amount,deduction_type,monthly_deduction_amount,total_deducted,remaining_balance,notes,status,deduction_history')
+      .then(({ data, error }) => {
+        if (!error && data) {
+          setAllAdvances(data.map((r: any) => ({
+            id: r.id, employeeId: r.employee_id, employeeName: r.employee_name,
+            advanceDate: r.advance_date || '', advanceAmount: Number(r.advance_amount),
+            deductionType: (r.deduction_type as 'Manual' | 'EMI') || 'Manual',
+            monthlyDeductionAmount: Number(r.monthly_deduction_amount),
+            totalDeducted: Number(r.total_deducted), remainingBalance: Number(r.remaining_balance),
+            notes: r.notes || '', status: (r.status as 'Active' | 'Closed') || 'Active',
+            deductionHistory: Array.isArray(r.deduction_history) ? r.deduction_history : [],
+          })));
+        }
+      });
+  }, [session]);
   const currentYear = new Date().getFullYear();
 
   // Filters
@@ -64,7 +116,7 @@ export default function PayslipPage() {
   // Apply all filters
   const filteredEntries = useMemo(() => {
     const empById = new Map(employees.map(e => [e.id, e]));
-    return payroll.filter(p => {
+    return allPayroll.filter(p => {
       if (months.length && !months.includes(p.month)) return false;
       if (years.length && !years.includes(String(p.year || currentYear))) return false;
       if (empIds.length && !empIds.includes(p.employeeId)) return false;
@@ -85,7 +137,7 @@ export default function PayslipPage() {
       if (ay !== by) return ay - by;
       return MONTHS.indexOf(a.month) - MONTHS.indexOf(b.month);
     });
-  }, [payroll, employees, months, years, empIds, departments, designations, statuses, dateFrom, dateTo, currentYear]);
+  }, [allPayroll, employees, months, years, empIds, departments, designations, statuses, dateFrom, dateTo, currentYear]);
 
   const totalPages = Math.max(1, Math.ceil(filteredEntries.length / pageSize));
   const pagedEntries = filteredEntries.slice((page - 1) * pageSize, page * pageSize);
@@ -93,7 +145,7 @@ export default function PayslipPage() {
   const selectAllEmployees = () => setEmpIds(employees.map(e => e.id));
 
   const downloadPDF = () => {
-    generateBulkPayslipPDF(filteredEntries, employees, bulkLayout, advances);
+    generateBulkPayslipPDF(filteredEntries, employees, bulkLayout, allAdvances);
   };
 
   return (
@@ -190,7 +242,12 @@ export default function PayslipPage() {
       </div>
 
       {/* Preview */}
-      {filteredEntries.length === 0 ? (
+      {loadingPayroll ? (
+        <div className="bg-card rounded-xl p-12 text-center card-shadow border border-border">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-muted-foreground">Loading payroll data…</p>
+        </div>
+      ) : filteredEntries.length === 0 ? (
         <div className="bg-card rounded-xl p-12 text-center card-shadow border border-border">
           <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
           <p className="text-muted-foreground">No payroll entries match the current filters.</p>
@@ -202,7 +259,7 @@ export default function PayslipPage() {
           </div>
           <div className={previewMode === 'compact' ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' : 'space-y-6 max-w-2xl mx-auto'}>
             {pagedEntries.map(entry => (
-              <PayslipTemplate key={entry.id} entry={entry} compact={previewMode === 'compact'} />
+              <PayslipTemplate key={entry.id} entry={entry} compact={previewMode === 'compact'} advances={allAdvances} />
             ))}
           </div>
           <TablePagination

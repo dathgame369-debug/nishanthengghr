@@ -1,6 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { PayrollEntry, Employee, Advance } from "@/types/hr";
+import { PayrollEntry, Employee, Advance, MONTHS } from "@/types/hr";
 import { logoBase64 } from "@/assets/logoBase64";
 import { buildPayslipBreakdown } from "@/utils/payslipBreakdown";
 import { numberToIndianWords } from "@/utils/numberToWords";
@@ -9,6 +9,23 @@ import { getCompanyInfo } from "@/utils/companySettings";
 // Helvetica (jsPDF default) doesn't support the ₹ glyph — use "Rs." prefix.
 function money(n: number): string {
   return "Rs. " + (n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** Returns the advance balance as it was right after this payslip's month deduction. */
+function getBalanceAtMonth(adv: Advance, entryMonth: string, entryYear: number): number {
+  const entryMonthIdx = MONTHS.indexOf(entryMonth);
+  const deductedSoFar = (adv.deductionHistory || []).reduce((sum: number, d: { month: string; amount: number }) => {
+    const parts = (d.month || '').split(' ');
+    const dMonthIdx = MONTHS.indexOf(parts[0]);
+    const dYear = parseInt(parts[1], 10);
+    if (!isNaN(dYear) && dMonthIdx !== -1) {
+      if (dYear < entryYear || (dYear === entryYear && dMonthIdx <= entryMonthIdx)) {
+        return sum + (d.amount || 0);
+      }
+    }
+    return sum;
+  }, 0);
+  return Math.max(0, (adv.advanceAmount || 0) - deductedSoFar);
 }
 
 export function generatePayslipPDF(entry: PayrollEntry, employees: Employee[], advances: Advance[] = []) {
@@ -183,7 +200,7 @@ function renderPayslipMini(
   });
 
   const deductionMiniTop = (doc as any).lastAutoTable.finalY + 1;
-  const miniBalanceAdv = adv ? Math.max(0, adv.remainingBalance || 0) : 0;
+  const miniBalanceAdv = adv ? getBalanceAtMonth(adv, entry.month, entry.year || new Date().getFullYear()) : 0;
 
   autoTable(doc, {
     startY: deductionMiniTop,
@@ -412,7 +429,7 @@ function renderPayslip(
   y = (doc as any).lastAutoTable.finalY + 3;
 
   // DEDUCTIONS table
-  const balanceAdvance = adv ? Math.max(0, adv.remainingBalance || 0) : 0;
+  const balanceAdvance = adv ? getBalanceAtMonth(adv, entry.month, entry.year || new Date().getFullYear()) : 0;
   const deductionsRows = [
 
     ["Advance Deduction", formatCell(entry.advanceDeduction)],

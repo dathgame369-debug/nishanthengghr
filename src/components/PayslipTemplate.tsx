@@ -1,19 +1,39 @@
-import { PayrollEntry, formatCurrency } from "@/types/hr";
+import { PayrollEntry, Advance, formatCurrency, MONTHS } from "@/types/hr";
 import { useHR } from "@/context/HRContext";
 import { numberToIndianWords } from "@/utils/numberToWords";
 import { buildPayslipBreakdown } from "@/utils/payslipBreakdown";
 import { useCompanyInfo } from "@/hooks/useCompanySettings";
 
+/** Returns the advance balance as it was right after this payslip's month deduction. */
+function getBalanceAtMonth(adv: Advance, entryMonth: string, entryYear: number): number {
+  const entryMonthIdx = MONTHS.indexOf(entryMonth);
+  const deductedSoFar = (adv.deductionHistory || []).reduce((sum, d) => {
+    const parts = (d.month || '').split(' ');
+    const dMonthIdx = MONTHS.indexOf(parts[0]);
+    const dYear = parseInt(parts[1], 10);
+    if (!isNaN(dYear) && dMonthIdx !== -1) {
+      if (dYear < entryYear || (dYear === entryYear && dMonthIdx <= entryMonthIdx)) {
+        return sum + (d.amount || 0);
+      }
+    }
+    return sum;
+  }, 0);
+  return Math.max(0, (adv.advanceAmount || 0) - deductedSoFar);
+}
+
 interface PayslipProps {
   entry: PayrollEntry;
   compact?: boolean;
+  advances?: Advance[];
 }
 
-export default function PayslipTemplate({ entry, compact = false }: PayslipProps) {
-  const { employees, advances } = useHR();
+export default function PayslipTemplate({ entry, compact = false, advances: advancesProp }: PayslipProps) {
+  const { employees, advances: contextAdvances } = useHR();
   const [company] = useCompanyInfo();
   const emp = employees.find((e) => e.id === entry.employeeId);
-  const adv = advances.find((a) => a.employeeId === entry.employeeId);
+  // Use the passed-in advances (all records) if provided; fall back to context (paginated)
+  const advancesList = advancesProp ?? contextAdvances;
+  const adv = advancesList.find((a) => a.employeeId === entry.employeeId);
   
   const calcLeaves = entry.noOfLeaves || 0;
   const leaveAmt = calcLeaves * (entry.monthlySalary / 26);
@@ -141,7 +161,7 @@ export default function PayslipTemplate({ entry, compact = false }: PayslipProps
                 Balance Advance <span className="text-[9px] opacity-60">(Advance Mgmt/Balance)</span>
               </td>
               <td className={`${compact ? "px-2 py-1" : "px-3 py-2"} text-right font-mono`}>
-                {formatCurrency(adv ? Math.max(0, adv.remainingBalance || 0) : 0)}
+                {formatCurrency(adv ? getBalanceAtMonth(adv, entry.month, entry.year || new Date().getFullYear()) : 0)}
               </td>
             </tr>
           </tbody>

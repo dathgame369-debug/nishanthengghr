@@ -61,7 +61,35 @@ export default function PayrollPage() {
   const [form, setForm] = useState<PayrollFormData>(emptyForm());
 
   const [viewEntry, setViewEntry] = useState<PayrollEntry | null>(null);
+  const [viewAdvanceBalance, setViewAdvanceBalance] = useState<number | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  // Fetch advance balance whenever the view modal opens
+  useEffect(() => {
+    if (!viewEntry) { setViewAdvanceBalance(null); return; }
+    supabase
+      .from('advances')
+      .select('advance_amount,deduction_history')
+      .eq('employee_id', viewEntry.employeeId)
+      .then(({ data }) => {
+        if (!data || data.length === 0) { setViewAdvanceBalance(null); return; }
+        const adv = data[0];
+        const entryMonthIdx = MONTHS.indexOf(viewEntry.month);
+        const entryYear = viewEntry.year || new Date().getFullYear();
+        const deductedSoFar = (adv.deduction_history || []).reduce((sum: number, d: { month: string; amount: number }) => {
+          const parts = (d.month || '').split(' ');
+          const dMonthIdx = MONTHS.indexOf(parts[0]);
+          const dYear = parseInt(parts[1], 10);
+          if (!isNaN(dYear) && dMonthIdx !== -1) {
+            if (dYear < entryYear || (dYear === entryYear && dMonthIdx <= entryMonthIdx)) {
+              return sum + (d.amount || 0);
+            }
+          }
+          return sum;
+        }, 0);
+        setViewAdvanceBalance(Math.max(0, Number(adv.advance_amount) - deductedSoFar));
+      });
+  }, [viewEntry]);
 
   const totalPages = Math.max(1, Math.ceil(totalPayroll / pageSize));
 
@@ -252,8 +280,22 @@ export default function PayrollPage() {
     doFetch();
   };
 
-  const handleDownload = (entry: PayrollEntry) => {
-    generatePayslipPDF(entry, employees, []);
+  const handleDownload = async (entry: PayrollEntry) => {
+    // Fetch the active advance for this employee so balance shows correctly in PDF
+    const { data: advRows } = await supabase
+      .from('advances')
+      .select('id,employee_id,employee_name,advance_date,advance_amount,deduction_type,monthly_deduction_amount,total_deducted,remaining_balance,notes,status,deduction_history')
+      .eq('employee_id', entry.employeeId);
+    const advList = (advRows || []).map((r: any) => ({
+      id: r.id, employeeId: r.employee_id, employeeName: r.employee_name,
+      advanceDate: r.advance_date || '', advanceAmount: Number(r.advance_amount),
+      deductionType: (r.deduction_type as 'Manual' | 'EMI') || 'Manual',
+      monthlyDeductionAmount: Number(r.monthly_deduction_amount),
+      totalDeducted: Number(r.total_deducted), remainingBalance: Number(r.remaining_balance),
+      notes: r.notes || '', status: (r.status as 'Active' | 'Closed') || 'Active',
+      deductionHistory: Array.isArray(r.deduction_history) ? r.deduction_history : [],
+    }));
+    generatePayslipPDF(entry, employees, advList);
   };
 
   return (
@@ -568,6 +610,7 @@ export default function PayrollPage() {
                       ['Welfare', viewEntry.welfareAmount],
                       ['Bonus', viewEntry.bonus],
                       ['Advance Deduction', viewEntry.advanceDeduction],
+                      ...(viewAdvanceBalance !== null ? [['Balance Advance', viewAdvanceBalance]] : []),
                     ].map((row, i) => (
                       <tr key={i} className="border-b border-border last:border-0">
                         <td className="px-3 py-2 text-muted-foreground">{row[0]}</td>
