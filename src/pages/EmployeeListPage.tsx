@@ -13,12 +13,14 @@ import { Users, Pencil, Trash2, Search, UserPlus } from 'lucide-react';
 import { usePayslipComponents } from '@/hooks/useCompanySettings';
 import { PayslipComponents } from '@/utils/companySettings';
 import { TablePagination } from '@/components/TablePagination';
+import { useActivityLog } from '@/context/ActivityLogContext';
 
 export default function EmployeeListPage() {
   const { employees, setEmployees, payroll, setPayroll, departments, roles } = useHR();
   const [components] = usePayslipComponents();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { logActivity } = useActivityLog();
   const [search, setSearch] = useState('');
   const [editEmp, setEditEmp] = useState<Employee | null>(null);
   const [page, setPage] = useState(1);
@@ -38,12 +40,15 @@ export default function EmployeeListPage() {
     if (!editEmp) return;
     setEmployees(prev => prev.map(e => e.id === editEmp.id ? editEmp : e));
     setPayroll(prev => prev.map(p => p.employeeId === editEmp.id ? { ...p, monthlySalary: editEmp.fixedSalary, employeeName: editEmp.name } : p));
+    logActivity('Updated', 'Employees', `Employee "${editEmp.name}" (${editEmp.id}) updated`);
     setEditEmp(null);
     toast({ title: 'Updated', description: `${editEmp.name} updated successfully` });
   };
 
   const handleDelete = (id: string) => {
+    const emp = employees.find(e => e.id === id);
     setEmployees(prev => prev.filter(e => e.id !== id));
+    logActivity('Deleted', 'Employees', `Employee "${emp?.name}" (${id}) deleted`);
     toast({ title: 'Deleted', description: 'Employee removed' });
   };
 

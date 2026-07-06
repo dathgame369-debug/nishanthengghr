@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Users, Plus, Pencil, Trash2, Search } from 'lucide-react';
 import { TablePagination } from '@/components/TablePagination';
+import { useActivityLog } from '@/context/ActivityLogContext';
 
 const empty: Customer = {
   id: '', name: '', address: '', gstNumber: '', contactPerson: '', phone: '', email: '',
@@ -20,6 +21,7 @@ const empty: Customer = {
 export default function CustomersPage() {
   const { customers, saveCustomer, deleteCustomer } = useQuotation();
   const { toast } = useToast();
+  const { logActivity } = useActivityLog();
   const [search, setSearch] = useState('');
   const [dialog, setDialog] = useState(false);
   const [edit, setEdit] = useState<Customer | null>(null);
@@ -55,6 +57,7 @@ export default function CustomersPage() {
     }
     try {
       await saveCustomer(form);
+      logActivity(edit ? 'Updated' : 'Created', 'Customers', `Customer "${form.name}" ${edit ? 'updated' : 'added'}`);
       toast({ title: edit ? 'Updated' : 'Added', description: `${form.name} saved` });
       setDialog(false);
     } catch (e: any) {
@@ -63,8 +66,10 @@ export default function CustomersPage() {
   };
 
   const remove = async (id: string) => {
+    const cust = customers.find(c => c.id === id);
     try {
       await deleteCustomer(id);
+      logActivity('Deleted', 'Customers', `Customer "${cust?.name}" deleted`);
       toast({ title: 'Deleted', description: 'Customer removed' });
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });

@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { UserPlus } from 'lucide-react';
+import { useActivityLog } from '@/context/ActivityLogContext';
 import { usePayslipComponents } from '@/hooks/useCompanySettings';
 import {
   ComponentAmounts, computeComponentDefaults,
@@ -15,6 +16,7 @@ import {
 export default function AddEmployeePage() {
   const { employees, setEmployees, departments, roles } = useHR();
   const { toast } = useToast();
+  const { logActivity } = useActivityLog();
   const [components] = usePayslipComponents();
   const newId = generateEmployeeId(employees);
 
@@ -79,6 +81,7 @@ export default function AddEmployeePage() {
     setForm({ name: '', fixedSalary: '', dateOfJoining: '', department: '', designation: '', phone: '', status: 'Active' });
     setComp({ hra: '', specialAllowance: '', medicalAllowance: '', travelAllowance: '', otherEarnings: '', pf: '', esi: '', professionalTax: '', loanRecovery: '', otherDeductions: '' });
     setTouched({});
+    logActivity('Created', 'Employees', `New employee "${emp.name}" (${emp.id}) added`);
     toast({ title: 'Employee Added', description: `${emp.name} (${emp.id}) added successfully` });
   };
 

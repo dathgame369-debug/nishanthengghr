@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { FileText, Plus, Pencil, Trash2, Download, Search, Loader2 } from 'lucide-react';
 import { generateQuotationPDF } from '@/utils/quotationPdf';
 import { TablePagination } from '@/components/TablePagination';
+import { useActivityLog } from '@/context/ActivityLogContext';
 
 const statusColor = (s: string) => {
   switch (s) {
@@ -26,6 +27,7 @@ export default function QuotationListPage() {
   const { quotations, totalQuotations, items, customers, loading, fetchQuotations, fetchItemsByQuotationId, deleteQuotation } = useQuotation();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { logActivity } = useActivityLog();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('All');
   const [customerFilter, setCustomerFilter] = useState('All');
@@ -67,12 +69,14 @@ export default function QuotationListPage() {
       }
     }
     generateQuotationPDF(q, its);
+    logActivity('Downloaded', 'Quotations', `Quotation PDF downloaded for "${q.title || q.id}"`);
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this quotation?')) return;
     try {
       await deleteQuotation(id);
+      logActivity('Deleted', 'Quotations', `Quotation "${quotations.find(q => q.id === id)?.title || id}" deleted`);
       toast({ title: 'Deleted', description: 'Quotation removed' });
       doFetch();
     } catch (e: any) {

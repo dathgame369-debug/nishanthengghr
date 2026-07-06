@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useCompanyInfo, usePayslipComponents } from '@/hooks/useCompanySettings';
 import { PayslipComponents } from '@/utils/companySettings';
 import { useHR } from '@/context/HRContext';
+import { useActivityLog } from '@/context/ActivityLogContext';
 
 const EARNINGS: { key: keyof PayslipComponents; label: string }[] = [
   { key: 'hra', label: 'HRA' },
@@ -32,6 +33,7 @@ export default function CompanySettingsPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { session, updateCredentials } = useHR();
+  const { logActivity } = useActivityLog();
 
   const [accForm, setAccForm] = useState({ username: session?.user?.email || '', password: '', confirm: '' });
 
@@ -48,6 +50,7 @@ export default function CompanySettingsPage() {
   const onSave = () => {
     saveCompany(form);
     saveComponents(comp);
+    logActivity('Updated', 'Company Settings', 'Company settings and payslip components saved');
     toast({ title: 'Saved', description: 'Company settings updated' });
   };
 
@@ -57,6 +60,7 @@ export default function CompanySettingsPage() {
     
     const { ok, error } = await updateCredentials(accForm.username.trim(), accForm.password || undefined);
     if (ok) {
+      logActivity('Updated', 'Company Settings', `Account credentials updated for user "${accForm.username.trim()}"`);
       toast({ title: 'Success', description: 'Account credentials updated successfully' });
       setAccForm(prev => ({ ...prev, password: '', confirm: '' }));
     } else {
