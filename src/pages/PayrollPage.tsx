@@ -160,11 +160,11 @@ export default function PayrollPage() {
     // Fetch active advance for this employee directly from DB
     const { data: advData } = await supabase
       .from('advances')
-      .select('monthly_deduction_amount')
+      .select('*')
       .eq('employee_id', empId)
       .eq('status', 'Active')
       .maybeSingle();
-    const monthlyDed = advData ? Number(advData.monthly_deduction_amount) : 0;
+    const monthlyDed = 0;
     setForm(f => ({
       ...f,
       employeeId: empId,
@@ -289,13 +289,13 @@ export default function PayrollPage() {
     // Fetch the active advance for this employee so balance shows correctly in PDF
     const { data: advRows } = await supabase
       .from('advances')
-      .select('id,employee_id,employee_name,advance_date,advance_amount,deduction_type,monthly_deduction_amount,total_deducted,remaining_balance,notes,status,deduction_history')
+      .select('id,employee_id,employee_name,advance_date,advance_amount,deduction_type,total_deducted,remaining_balance,notes,status,deduction_history')
       .eq('employee_id', entry.employeeId);
     const advList = (advRows || []).map((r: any) => ({
       id: r.id, employeeId: r.employee_id, employeeName: r.employee_name,
       advanceDate: r.advance_date || '', advanceAmount: Number(r.advance_amount),
       deductionType: (r.deduction_type as 'Manual' | 'EMI') || 'Manual',
-      monthlyDeductionAmount: Number(r.monthly_deduction_amount),
+      monthlyDeductionAmount: 0,
       totalDeducted: Number(r.total_deducted), remainingBalance: Number(r.remaining_balance),
       notes: r.notes || '', status: (r.status as 'Active' | 'Closed') || 'Active',
       deductionHistory: Array.isArray(r.deduction_history) ? r.deduction_history : [],

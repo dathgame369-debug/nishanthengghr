@@ -23,55 +23,64 @@ export default function AdvanceManagementPage() {
   const [editAdv, setEditAdv] = useState<Advance | null>(null);
   const [deleteAdv, setDeleteAdv] = useState<Advance | null>(null);
   const [addAmount, setAddAmount] = useState<string>('');
+  const [addDate, setAddDate] = useState<string>('');
+  const [ledgerDateFrom, setLedgerDateFrom] = useState<string>('');
+  const [ledgerDateTo, setLedgerDateTo] = useState<string>('');
+  const [ledgerYear, setLedgerYear] = useState<string>('All');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  // Live totals computed from actual payroll records (keyed by employeeId)
-  const [payrollTotals, setPayrollTotals] = useState<Record<string, number>>({});
-
-  useEffect(() => {
-    supabase
-      .from('payroll')
-      .select('employee_id,advance_deduction')
-      .then(({ data }) => {
-        if (!data) return;
-        const totals: Record<string, number> = {};
-        data.forEach((r: any) => {
-          const empId = r.employee_id as string;
-          totals[empId] = (totals[empId] || 0) + Number(r.advance_deduction || 0);
-        });
-        setPayrollTotals(totals);
-      });
-  }, [advances]); // re-run whenever advances list refreshes
+  // NOTE: We intentionally do NOT recompute advance balances from payroll records here.
+  // The `remainingBalance` and `totalDeducted` fields on each advance record are kept
+  // up-to-date by updateAdvanceInDB() in PayrollPage whenever a payslip is saved or deleted.
+  // Reading them directly is the single source of truth and handles multiple-advance-per-
+  // employee scenarios correctly.
   const [form, setForm] = useState({
     employeeId: '', advanceDate: '', advanceAmount: '', deductionType: 'Manual' as 'Manual' | 'EMI',
     notes: '',
   });
 
+  const [filters, setFilters] = useState({ search: '', year: 'All', dateFrom: '', dateTo: '' });
   const totalPages = Math.max(1, Math.ceil(totalAdvances / pageSize));
 
   const doFetch = useCallback(() => {
-    fetchAdvances(page, pageSize);
-  }, [page, pageSize, fetchAdvances]);
+    fetchAdvances(page, pageSize, filters);
+  }, [page, pageSize, filters, fetchAdvances]);
 
   useEffect(() => {
     doFetch();
   }, [doFetch]);
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     const emp = employees.find(e => e.id === form.employeeId);
     if (!emp || !form.advanceAmount) {
       toast({ title: 'Error', description: 'Select employee and enter amount', variant: 'destructive' });
       return;
     }
     const amt = parseFloat(form.advanceAmount);
-    const adv: Advance = {
-      id: `ADV${Date.now()}`, employeeId: emp.id, employeeName: emp.name,
-      advanceDate: form.advanceDate, advanceAmount: amt,
-      deductionType: form.deductionType, monthlyDeductionAmount: 0,
-      totalDeducted: 0, remainingBalance: amt, notes: form.notes, status: 'Active', deductionHistory: [],
+    const advRow = {
+      id: `ADV${Date.now()}`,
+      employee_id: emp.id,
+      employee_name: emp.name,
+      advance_date: form.advanceDate,
+      advance_amount: amt,
+      deduction_type: form.deductionType,
+      total_deducted: 0,
+      remaining_balance: amt,
+      notes: form.notes,
+      status: 'Active',
+      deduction_history: [],
     };
-    setAdvances(prev => [...prev, adv]);
+
+    // Await the insert directly so the row exists in DB before we refresh the list.
+    // Using setAdvances (makeSetter) fires the upsert asynchronously — doFetch() would
+    // then run before the insert finished and wipe out the new record from the UI.
+    const { error } = await supabase.from('advances').insert(advRow);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return;
+    }
+
     setShowAdd(false);
     setForm({ employeeId: '', advanceDate: '', advanceAmount: '', deductionType: 'Manual', notes: '' });
     logActivity('Created', 'Advances', `Advance of ₹${amt.toLocaleString()} added for ${emp.name} (${emp.id})`);
@@ -82,6 +91,15 @@ export default function AdvanceManagementPage() {
   const handleEdit = async () => {
     if (!editAdv) return;
     const extra = parseFloat(addAmount) || 0;
+    
+    let newHistory = [...(editAdv.deductionHistory || [])];
+    if (extra > 0 && addDate) {
+      newHistory.push({ date: addDate, amount: extra, isAddition: true });
+    } else if (extra > 0 && !addDate) {
+      toast({ title: 'Error', description: 'Please select a date for the new advance amount', variant: 'destructive' });
+      return;
+    }
+
     const newAdvanceAmount = editAdv.advanceAmount + extra;
     const newBalance = Math.max(0, newAdvanceAmount - editAdv.totalDeducted);
     const newStatus = (newBalance <= 0 && editAdv.totalDeducted > 0) ? 'Closed' : editAdv.status;
@@ -94,6 +112,7 @@ export default function AdvanceManagementPage() {
         remaining_balance: newBalance,
         notes: editAdv.notes,
         status: newStatus,
+        deduction_history: newHistory,
       })
       .eq('id', editAdv.id);
 
@@ -104,6 +123,7 @@ export default function AdvanceManagementPage() {
 
     setEditAdv(null);
     setAddAmount('');
+    setAddDate('');
     const desc = extra > 0
       ? `Advance for ${editAdv.employeeName}: ₹${extra.toLocaleString()} added (new total ₹${newAdvanceAmount.toLocaleString()})`
       : `Advance for ${editAdv.employeeName} details updated`;
@@ -136,7 +156,33 @@ export default function AdvanceManagementPage() {
         <Button onClick={() => setShowAdd(true)} className="w-full sm:w-auto"><Plus className="w-4 h-4 mr-2" /> Add Advance</Button>
       </div>
 
-      <div className="bg-card rounded-xl card-shadow border border-border overflow-x-auto">
+      {/* Filters */}
+      <div className="bg-card p-4 rounded-xl border border-border/50 shadow-sm mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div>
+          <label className="text-xs font-medium text-muted-foreground mb-1 block">Search Employee</label>
+          <Input placeholder="Search..." value={filters.search} onChange={e => { setFilters(f => ({ ...f, search: e.target.value })); setPage(1); }} />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-muted-foreground mb-1 block">Year</label>
+          <Select value={filters.year} onValueChange={v => { setFilters(f => ({ ...f, year: v })); setPage(1); }}>
+            <SelectTrigger><SelectValue placeholder="All Years" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All">All Years</SelectItem>
+              {[2024, 2025, 2026, 2027].map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <label className="text-xs font-medium text-muted-foreground mb-1 block">Date From</label>
+          <Input type="date" value={filters.dateFrom} onChange={e => { setFilters(f => ({ ...f, dateFrom: e.target.value })); setPage(1); }} />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-muted-foreground mb-1 block">Date To</label>
+          <Input type="date" value={filters.dateTo} onChange={e => { setFilters(f => ({ ...f, dateTo: e.target.value })); setPage(1); }} />
+        </div>
+      </div>
+      
+      <div className="bg-card border border-border/50 rounded-xl shadow-sm overflow-hidden mb-6">
         <Table className="min-w-[980px]">
           <TableHeader>
             <TableRow className="bg-muted/50">
@@ -154,8 +200,8 @@ export default function AdvanceManagementPage() {
                 <TableCell>{adv.advanceDate ? adv.advanceDate.split('-').reverse().join('-') : '—'}</TableCell>
                 <TableCell className="text-right font-mono">{formatCurrency(adv.advanceAmount)}</TableCell>
                 <TableCell><Badge variant="outline">{adv.deductionType}</Badge></TableCell>
-                <TableCell className="text-right font-mono font-semibold">{formatCurrency(payrollTotals[adv.employeeId] ?? adv.totalDeducted)}</TableCell>
-                <TableCell className="text-right font-mono font-semibold text-primary">{formatCurrency(Math.max(0, adv.advanceAmount - (payrollTotals[adv.employeeId] ?? adv.totalDeducted)))}</TableCell>
+                <TableCell className="text-right font-mono font-semibold">{formatCurrency(adv.totalDeducted)}</TableCell>
+                <TableCell className="text-right font-mono font-semibold text-primary">{formatCurrency(adv.remainingBalance)}</TableCell>
                 <TableCell>
                   <Badge className={adv.status === 'Active' ? 'bg-warning text-warning-foreground' : 'bg-success text-success-foreground'}>
                     {adv.status}
@@ -209,56 +255,169 @@ export default function AdvanceManagementPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Dialog */}
-      <Dialog open={!!editAdv} onOpenChange={() => { setEditAdv(null); setAddAmount(''); }}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Edit Advance</DialogTitle></DialogHeader>
+      {/* Edit Dialog (Ledger) */}
+      <Dialog open={!!editAdv} onOpenChange={() => { setEditAdv(null); setAddAmount(''); setAddDate(''); setLedgerDateFrom(''); setLedgerDateTo(''); setLedgerYear('All'); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Advance Ledger</DialogTitle></DialogHeader>
           {editAdv && (
-            <div className="space-y-4">
-              <div><label className="text-sm font-medium block mb-1">Employee</label><Input value={`${editAdv.employeeId} - ${editAdv.employeeName}`} disabled className="bg-muted" /></div>
-              <div>
-                <label className="text-sm font-medium block mb-1">Advance Amount (₹)</label>
-                <Input
-                  type="number"
-                  min={editAdv.totalDeducted}
-                  value={editAdv.advanceAmount}
-                  onChange={e => {
-                    const amt = parseFloat(e.target.value) || 0;
-                    setEditAdv({ ...editAdv, advanceAmount: amt, remainingBalance: Math.max(0, amt - editAdv.totalDeducted) });
-                  }}
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Already deducted: {formatCurrency(editAdv.totalDeducted)} • Remaining: {formatCurrency(Math.max(0, editAdv.advanceAmount - editAdv.totalDeducted))}
-                </p>
+            <div className="space-y-6">
+              <div className="flex justify-between items-center bg-muted/30 p-4 rounded-lg border border-border/50">
+                <div>
+                  <p className="text-sm text-muted-foreground">Employee</p>
+                  <p className="font-medium">{editAdv.employeeId} - {editAdv.employeeName}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground">Current Balance</p>
+                  <p className="text-xl font-bold text-primary">{formatCurrency(editAdv.remainingBalance)}</p>
+                </div>
               </div>
-              <div>
-                <label className="text-sm font-medium block mb-1">Add Amount (₹)</label>
-                <Input
-                  type="number"
-                  min="0"
-                  placeholder="Enter amount to add"
-                  value={addAmount}
-                  onChange={e => setAddAmount(e.target.value)}
-                />
+
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="text-xs font-medium block mb-1">Filter Year</label>
+                  <Select value={ledgerYear} onValueChange={setLedgerYear}>
+                    <SelectTrigger><SelectValue placeholder="All Years" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="All">All Years</SelectItem>
+                      {[2024, 2025, 2026, 2027].map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-1">
+                  <label className="text-xs font-medium block mb-1">Filter Date From</label>
+                  <Input type="date" value={ledgerDateFrom} onChange={e => setLedgerDateFrom(e.target.value)} />
+                </div>
+                <div className="flex-1">
+                  <label className="text-xs font-medium block mb-1">Filter Date To</label>
+                  <Input type="date" value={ledgerDateTo} onChange={e => setLedgerDateTo(e.target.value)} />
+                </div>
+              </div>
+
+              {/* Ledger Table */}
+              <div className="border border-border/50 rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead>Date / Month</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead className="text-right text-success">Added</TableHead>
+                      <TableHead className="text-right text-destructive">Deducted</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {/* Initial Advance */}
+                    {(!ledgerDateFrom || (editAdv.advanceDate && editAdv.advanceDate >= ledgerDateFrom)) &&
+                     (!ledgerDateTo || (editAdv.advanceDate && editAdv.advanceDate <= ledgerDateTo)) && 
+                     (ledgerYear === 'All' || (editAdv.advanceDate && editAdv.advanceDate.startsWith(ledgerYear))) && (
+                    <TableRow>
+                      <TableCell>{editAdv.advanceDate ? editAdv.advanceDate.split('-').reverse().join('/') : '—'}</TableCell>
+                      <TableCell><Badge variant="outline">Initial Advance</Badge></TableCell>
+                      <TableCell className="text-right font-mono text-success">
+                        {/* The initial amount is advanceAmount minus all additions */}
+                        {formatCurrency(editAdv.advanceAmount - (editAdv.deductionHistory || []).filter(h => h.isAddition).reduce((sum, h) => sum + h.amount, 0))}
+                      </TableCell>
+                      <TableCell className="text-right">—</TableCell>
+                    </TableRow>
+                    )}
+                    {/* History */}
+                    {(editAdv.deductionHistory || []).filter(entry => {
+                      let dateStr = entry.isAddition ? entry.date : undefined;
+                      if (!entry.isAddition && entry.month) {
+                        try {
+                          dateStr = new Date(entry.month + ' 1').toISOString().split('T')[0];
+                        } catch (e) {
+                          // ignore parsing errors
+                        }
+                      }
+                      if (!dateStr) return true;
+                      
+                      if (ledgerYear !== 'All' && !dateStr.startsWith(ledgerYear)) return false;
+                      if (ledgerDateFrom && dateStr < ledgerDateFrom) return false;
+                      if (ledgerDateTo && dateStr > ledgerDateTo) return false;
+                      return true;
+                    }).map((entry, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell>
+                          {(() => {
+                            if (entry.isAddition) {
+                              return entry.date ? entry.date.split('-').reverse().join('/') : '—';
+                            }
+                            if (entry.month) {
+                              try {
+                                const d = new Date(entry.month + ' 1');
+                                if (!isNaN(d.getTime())) {
+                                  // Default payroll deduction display to 1st of the month
+                                  const day = String(d.getDate()).padStart(2, '0');
+                                  const month = String(d.getMonth() + 1).padStart(2, '0');
+                                  const year = d.getFullYear();
+                                  return `${day}/${month}/${year}`;
+                                }
+                              } catch (e) {}
+                              return entry.month;
+                            }
+                            return '—';
+                          })()}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={entry.isAddition ? "default" : "secondary"}>
+                            {entry.isAddition ? 'Additional Advance' : 'Payroll Deduction'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-success">
+                          {entry.isAddition ? formatCurrency(entry.amount) : '—'}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-destructive">
+                          {!entry.isAddition ? formatCurrency(entry.amount) : '—'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {/* Total Row */}
+                    <TableRow className="bg-muted/20 font-bold">
+                      <TableCell colSpan={2} className="text-right">Totals</TableCell>
+                      <TableCell className="text-right font-mono text-success">{formatCurrency(editAdv.advanceAmount)}</TableCell>
+                      <TableCell className="text-right font-mono text-destructive">{formatCurrency(editAdv.totalDeducted)}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Add Amount Form */}
+              <div className="bg-muted/30 p-4 rounded-lg border border-border/50 space-y-4">
+                <h3 className="text-sm font-medium">Record Additional Advance</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-medium block mb-1">Date</label>
+                    <Input type="date" value={addDate} onChange={e => setAddDate(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium block mb-1">Amount (₹)</label>
+                    <Input type="number" min="0" placeholder="Enter amount" value={addAmount} onChange={e => setAddAmount(e.target.value)} />
+                  </div>
+                </div>
                 {(() => {
                   const extra = parseFloat(addAmount) || 0;
-                  const currentBalance = Math.max(0, editAdv.advanceAmount - editAdv.totalDeducted);
-                  const newBalance = currentBalance + extra;
+                  const newBalance = editAdv.remainingBalance + extra;
                   return extra > 0 ? (
-                    <p className="text-xs mt-1">
-                      <span className="text-muted-foreground">Current balance: {formatCurrency(currentBalance)}</span>
-                      {' '}→{' '}
-                      <span className="text-green-600 font-semibold">New balance: {formatCurrency(newBalance)}</span>
+                    <p className="text-xs">
+                      <span className="text-muted-foreground">New Balance will be: </span>
+                      <span className="text-primary font-semibold">{formatCurrency(newBalance)}</span>
                     </p>
                   ) : null;
                 })()}
               </div>
-              <div><label className="text-sm font-medium block mb-1">Notes</label><Input value={editAdv.notes} onChange={e => setEditAdv({ ...editAdv, notes: e.target.value })} /></div>
-              <div><label className="text-sm font-medium block mb-1">Status</label>
-                <Select value={editAdv.status} onValueChange={v => setEditAdv({ ...editAdv, status: v as 'Active' | 'Closed' })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="Active">Active</SelectItem><SelectItem value="Closed">Closed</SelectItem></SelectContent>
-                </Select>
+
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="text-xs font-medium block mb-1">Status</label>
+                  <Select value={editAdv.status} onValueChange={v => setEditAdv({ ...editAdv, status: v as 'Active' | 'Closed' })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent><SelectItem value="Active">Active</SelectItem><SelectItem value="Closed">Closed</SelectItem></SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-1">
+                  <label className="text-xs font-medium block mb-1">Notes</label>
+                  <Input value={editAdv.notes} onChange={e => setEditAdv({ ...editAdv, notes: e.target.value })} />
+                </div>
               </div>
               <Button onClick={handleEdit} className="w-full">Save Changes</Button>
             </div>

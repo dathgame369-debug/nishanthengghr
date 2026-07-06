@@ -35,7 +35,7 @@ interface HRContextType {
   // Advances — server-side paginated
   advances: Advance[];            // current page
   totalAdvances: number;
-  fetchAdvances: (page: number, pageSize: number) => Promise<void>;
+  fetchAdvances: (page: number, pageSize: number, filters?: { search?: string, year?: string, dateFrom?: string, dateTo?: string }) => Promise<void>;
   setAdvances: Setter<Advance>;   // for mutations
 }
 
@@ -69,7 +69,7 @@ const empFromRow = (r: any): Employee => ({
 const advToRow = (a: Advance) => ({
   id: a.id, employee_id: a.employeeId, employee_name: a.employeeName, advance_date: a.advanceDate,
   advance_amount: a.advanceAmount, deduction_type: a.deductionType,
-  monthly_deduction_amount: a.monthlyDeductionAmount, total_deducted: a.totalDeducted,
+  total_deducted: a.totalDeducted,
   remaining_balance: a.remainingBalance, notes: a.notes, status: a.status,
   deduction_history: a.deductionHistory as any,
 });
@@ -77,7 +77,7 @@ export const advFromRow = (r: any): Advance => ({
   id: r.id, employeeId: r.employee_id, employeeName: r.employee_name,
   advanceDate: r.advance_date || '', advanceAmount: Number(r.advance_amount),
   deductionType: (r.deduction_type as 'Manual' | 'EMI') || 'Manual',
-  monthlyDeductionAmount: Number(r.monthly_deduction_amount),
+  monthlyDeductionAmount: 0,
   totalDeducted: Number(r.total_deducted), remainingBalance: Number(r.remaining_balance),
   notes: r.notes || '', status: (r.status as 'Active' | 'Closed') || 'Active',
   deductionHistory: Array.isArray(r.deduction_history) ? r.deduction_history : [],
@@ -225,16 +225,33 @@ export function HRProvider({ children }: { children: React.ReactNode }) {
   }, [session]);
 
   // Server-side paginated advances fetch
-  const fetchAdvances = useCallback(async (page: number, pageSize: number) => {
+  const fetchAdvances = useCallback(async (page: number, pageSize: number, filters: { search?: string, year?: string, dateFrom?: string, dateTo?: string } = {}) => {
     if (!session) return;
     try {
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
-      const { data, count, error } = await supabase
+      let query = supabase
         .from('advances')
-        .select('*', { count: 'exact' })
+        .select('*', { count: 'exact' });
+
+      if (filters.search) {
+        query = query.or(`employee_name.ilike.%${filters.search}%,employee_id.ilike.%${filters.search}%`);
+      }
+      if (filters.year && filters.year !== 'All') {
+        // Simple string match on the advance_date assuming YYYY-MM-DD
+        query = query.like('advance_date', `${filters.year}-%`);
+      }
+      if (filters.dateFrom) {
+        query = query.gte('advance_date', filters.dateFrom);
+      }
+      if (filters.dateTo) {
+        query = query.lte('advance_date', filters.dateTo);
+      }
+
+      const { data, count, error } = await query
         .order('created_at', { ascending: false })
         .range(from, to);
+        
       if (error) throw error;
       setAdvancesState((data || []).map(advFromRow));
       setTotalAdvances(count ?? 0);

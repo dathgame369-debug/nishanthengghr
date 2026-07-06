@@ -4,17 +4,50 @@ import { numberToIndianWords } from "@/utils/numberToWords";
 import { buildPayslipBreakdown } from "@/utils/payslipBreakdown";
 import { useCompanyInfo } from "@/hooks/useCompanySettings";
 
-/** Returns the advance balance as it was right after this payslip's month deduction. */
+/**
+ * Returns the advance balance as it was right after this payslip's month deduction.
+ *
+ * IMPORTANT: Only advances whose advanceDate falls ON OR BEFORE the last day of the
+ * target month are included. This ensures that a future advance (e.g. taken in July)
+ * does NOT inflate the balance shown on an earlier payslip (e.g. June).
+ */
 function getBalanceAtMonth(employeeId: string, entryMonth: string, entryYear: number, allPayroll: PayrollEntry[] = [], allAdvances: Advance[] = []): number {
   const entryMonthIdx = MONTHS.indexOf(entryMonth);
   const eYear = Number(entryYear);
 
-  // Sum all advances given to this employee (no date restriction needed since deductions perfectly offset them)
+  // Last calendar day of the payslip month — advances taken after this date are excluded.
+  // new Date(year, month+1, 0) gives day-0 of the next month = last day of this month.
+  const lastDayOfMonth = new Date(eYear, entryMonthIdx + 1, 0);
+
+  // Sum only advances and additions that were given ON OR BEFORE the last day of the target month.
   const totalAdvances = allAdvances
     .filter(a => a.employeeId === employeeId)
-    .reduce((sum, a) => sum + (a.advanceAmount || 0), 0);
+    .reduce((sum, a) => {
+      let activeAmount = 0;
+      
+      // Calculate initial advance amount (total advance - sum of all later additions)
+      const totalAdditions = (a.deductionHistory || []).filter((h: any) => h.isAddition).reduce((s: number, h: any) => s + (h.amount || 0), 0);
+      const initialAmount = (a.advanceAmount || 0) - totalAdditions;
 
-  // Sum all deductions for this employee up to this month
+      // Include initial advance if its date is before or on the last day of the payslip month
+      const initialDate = a.advanceDate ? new Date(a.advanceDate) : new Date(0);
+      if (!a.advanceDate || initialDate <= lastDayOfMonth) {
+        activeAmount += initialAmount;
+      }
+
+      // Include any additional advances if their dates are before or on the last day of the payslip month
+      (a.deductionHistory || []).filter((h: any) => h.isAddition).forEach((h: any) => {
+        if (!h.date) return;
+        const addDate = new Date(h.date);
+        if (addDate <= lastDayOfMonth) {
+          activeAmount += (h.amount || 0);
+        }
+      });
+
+      return sum + activeAmount;
+    }, 0);
+
+  // Sum all deductions for this employee up to and including the target month.
   const deductedSoFar = allPayroll.reduce((sum, p) => {
     if (p.employeeId !== employeeId) return sum;
     

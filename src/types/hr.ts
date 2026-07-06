@@ -20,6 +20,13 @@ export interface Employee {
   otherDeductions?: number;
 }
 
+export interface AdvanceHistoryEntry {
+  month?: string; // e.g., "July 2026" for payroll deductions
+  date?: string;  // e.g., "2026-07-15" for additions
+  amount: number;
+  isAddition?: boolean;
+}
+
 export interface Advance {
   id: string;
   employeeId: string;
@@ -32,7 +39,7 @@ export interface Advance {
   remainingBalance: number;
   notes: string;
   status: 'Active' | 'Closed';
-  deductionHistory: { month: string; amount: number }[];
+  deductionHistory: AdvanceHistoryEntry[];
 }
 
 export interface PayrollEntry {
