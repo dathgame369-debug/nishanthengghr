@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Wallet, Plus, Pencil, Trash2, PlusCircle, MinusCircle } from 'lucide-react';
+import { Wallet, Plus, Pencil, Trash2 } from 'lucide-react';
 import { formatCurrency } from '@/types/hr';
 import { TablePagination } from '@/components/TablePagination';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,9 +20,7 @@ export default function AdvanceManagementPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [editAdv, setEditAdv] = useState<Advance | null>(null);
   const [deleteAdv, setDeleteAdv] = useState<Advance | null>(null);
-  const [showAdjust, setShowAdjust] = useState(false);
-  const [adjustMode, setAdjustMode] = useState<'add' | 'subtract'>('add');
-  const [adjustAmount, setAdjustAmount] = useState('');
+  const [addAmount, setAddAmount] = useState<string>('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
@@ -78,38 +76,33 @@ export default function AdvanceManagementPage() {
     doFetch();
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (!editAdv) return;
-    const updated: Advance = {
-      ...editAdv,
-      remainingBalance: Math.max(0, editAdv.advanceAmount - editAdv.totalDeducted),
-    };
-    if (updated.remainingBalance <= 0 && updated.totalDeducted > 0) {
-      updated.status = 'Closed';
-    }
-    setAdvances(prev => prev.map(a => a.id === editAdv.id ? updated : a));
-    setEditAdv(null);
-    toast({ title: 'Updated' });
-    doFetch();
-  };
+    const extra = parseFloat(addAmount) || 0;
+    const newAdvanceAmount = editAdv.advanceAmount + extra;
+    const newBalance = Math.max(0, newAdvanceAmount - editAdv.totalDeducted);
+    const newStatus = (newBalance <= 0 && editAdv.totalDeducted > 0) ? 'Closed' : editAdv.status;
 
-  const handleApplyAdjust = () => {
-    if (!editAdv) return;
-    const delta = parseFloat(adjustAmount) || 0;
-    if (delta <= 0) {
-      toast({ title: 'Invalid amount', description: 'Enter a positive value', variant: 'destructive' });
+    // Directly await the Supabase update so doFetch reads the updated row
+    const { error } = await supabase
+      .from('advances')
+      .update({
+        advance_amount: newAdvanceAmount,
+        remaining_balance: newBalance,
+        notes: editAdv.notes,
+        status: newStatus,
+      })
+      .eq('id', editAdv.id);
+
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
       return;
     }
-    let newAmount = editAdv.advanceAmount;
-    if (adjustMode === 'add') {
-      newAmount = editAdv.advanceAmount + delta;
-    } else {
-      newAmount = Math.max(editAdv.totalDeducted, editAdv.advanceAmount - delta);
-    }
-    setEditAdv({ ...editAdv, advanceAmount: newAmount, remainingBalance: Math.max(0, newAmount - editAdv.totalDeducted) });
-    setAdjustAmount('');
-    setShowAdjust(false);
-    toast({ title: `Amount ${adjustMode === 'add' ? 'increased' : 'decreased'}`, description: `New advance amount: ${formatCurrency(newAmount)}` });
+
+    setEditAdv(null);
+    setAddAmount('');
+    toast({ title: 'Updated', description: extra > 0 ? `₹${extra.toLocaleString()} added to advance` : 'Advance details saved' });
+    doFetch();
   };
 
   const handleDelete = () => {
@@ -209,7 +202,7 @@ export default function AdvanceManagementPage() {
       </Dialog>
 
       {/* Edit Dialog */}
-      <Dialog open={!!editAdv} onOpenChange={() => { setEditAdv(null); setShowAdjust(false); setAdjustAmount(''); }}>
+      <Dialog open={!!editAdv} onOpenChange={() => { setEditAdv(null); setAddAmount(''); }}>
         <DialogContent>
           <DialogHeader><DialogTitle>Edit Advance</DialogTitle></DialogHeader>
           {editAdv && (
@@ -217,110 +210,40 @@ export default function AdvanceManagementPage() {
               <div><label className="text-sm font-medium block mb-1">Employee</label><Input value={`${editAdv.employeeId} - ${editAdv.employeeName}`} disabled className="bg-muted" /></div>
               <div>
                 <label className="text-sm font-medium block mb-1">Advance Amount (₹)</label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    min={editAdv.totalDeducted}
-                    value={editAdv.advanceAmount}
-                    onChange={e => {
-                      const amt = parseFloat(e.target.value) || 0;
-                      setEditAdv({ ...editAdv, advanceAmount: amt, remainingBalance: Math.max(0, amt - editAdv.totalDeducted) });
-                    }}
-                    className="flex-1"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="shrink-0 hover:bg-primary/10 hover:border-primary hover:text-primary transition-colors"
-                    onClick={() => { setAdjustAmount(''); setShowAdjust(true); }}
-                    title="Adjust advance amount"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </Button>
-                </div>
+                <Input
+                  type="number"
+                  min={editAdv.totalDeducted}
+                  value={editAdv.advanceAmount}
+                  onChange={e => {
+                    const amt = parseFloat(e.target.value) || 0;
+                    setEditAdv({ ...editAdv, advanceAmount: amt, remainingBalance: Math.max(0, amt - editAdv.totalDeducted) });
+                  }}
+                />
                 <p className="text-xs text-muted-foreground mt-1">
                   Already deducted: {formatCurrency(editAdv.totalDeducted)} • Remaining: {formatCurrency(Math.max(0, editAdv.advanceAmount - editAdv.totalDeducted))}
                 </p>
-
-                {/* Adjust Amount Sub-Popup */}
-                {showAdjust && (
-                  <div className="mt-3 border border-border rounded-xl bg-muted/30 p-4 space-y-3 shadow-sm">
-                    <p className="text-sm font-semibold text-foreground">Adjust Advance Amount</p>
-
-                    {/* Toggle Add / Subtract */}
-                    <div className="flex rounded-lg overflow-hidden border border-border">
-                      <button
-                        type="button"
-                        onClick={() => setAdjustMode('add')}
-                        className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium transition-colors ${
-                          adjustMode === 'add'
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-background text-muted-foreground hover:bg-muted'
-                        }`}
-                      >
-                        <PlusCircle className="w-4 h-4" /> Add
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setAdjustMode('subtract')}
-                        className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium transition-colors ${
-                          adjustMode === 'subtract'
-                            ? 'bg-destructive text-destructive-foreground'
-                            : 'bg-background text-muted-foreground hover:bg-muted'
-                        }`}
-                      >
-                        <MinusCircle className="w-4 h-4" /> Subtract
-                      </button>
-                    </div>
-
-                    {/* Amount Input */}
-                    <Input
-                      type="number"
-                      min="1"
-                      placeholder="Enter amount"
-                      value={adjustAmount}
-                      onChange={e => setAdjustAmount(e.target.value)}
-                      className="bg-background"
-                      autoFocus
-                    />
-
-                    {/* Live preview */}
-                    {adjustAmount && parseFloat(adjustAmount) > 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        New amount will be:{' '}
-                        <span className={`font-semibold ${ adjustMode === 'add' ? 'text-primary' : 'text-destructive' }`}>
-                          {formatCurrency(
-                            adjustMode === 'add'
-                              ? editAdv.advanceAmount + (parseFloat(adjustAmount) || 0)
-                              : Math.max(editAdv.totalDeducted, editAdv.advanceAmount - (parseFloat(adjustAmount) || 0))
-                          )}
-                        </span>
-                      </p>
-                    )}
-
-                    {/* Actions */}
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="flex-1"
-                        onClick={handleApplyAdjust}
-                      >
-                        Apply
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="flex-1"
-                        onClick={() => { setShowAdjust(false); setAdjustAmount(''); }}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                )}
+              </div>
+              <div>
+                <label className="text-sm font-medium block mb-1">Add Amount (₹)</label>
+                <Input
+                  type="number"
+                  min="0"
+                  placeholder="Enter amount to add"
+                  value={addAmount}
+                  onChange={e => setAddAmount(e.target.value)}
+                />
+                {(() => {
+                  const extra = parseFloat(addAmount) || 0;
+                  const currentBalance = Math.max(0, editAdv.advanceAmount - editAdv.totalDeducted);
+                  const newBalance = currentBalance + extra;
+                  return extra > 0 ? (
+                    <p className="text-xs mt-1">
+                      <span className="text-muted-foreground">Current balance: {formatCurrency(currentBalance)}</span>
+                      {' '}→{' '}
+                      <span className="text-green-600 font-semibold">New balance: {formatCurrency(newBalance)}</span>
+                    </p>
+                  ) : null;
+                })()}
               </div>
               <div><label className="text-sm font-medium block mb-1">Notes</label><Input value={editAdv.notes} onChange={e => setEditAdv({ ...editAdv, notes: e.target.value })} /></div>
               <div><label className="text-sm font-medium block mb-1">Status</label>
