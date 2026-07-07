@@ -12,6 +12,9 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Settings, Plus, Pencil, Trash2, Search, Building2, Briefcase, HandCoins, ClipboardList, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 import { TablePagination } from '@/components/TablePagination';
+
+export default function SettingsPage() {
+  const { departments, setDepartments, roles, setRoles } = useHR();
   const { toast } = useToast();
 
   // Department state
@@ -34,6 +37,10 @@ import { TablePagination } from '@/components/TablePagination';
   const [deptPageSize, setDeptPageSize] = useState(10);
   const [rolePage, setRolePage] = useState(1);
   const [rolePageSize, setRolePageSize] = useState(10);
+
+  const filteredDepts = departments.filter(d => d.name.toLowerCase().includes(deptSearch.toLowerCase()));
+  const filteredRoles = roles.filter(r => r.name.toLowerCase().includes(roleSearch.toLowerCase()));
+  const activeDepts = departments.filter(d => d.status === 'Active');
 
   // Compute pagination details
   const deptTotalPages = Math.max(1, Math.ceil(filteredDepts.length / deptPageSize));
