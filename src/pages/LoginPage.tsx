@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useHR } from '@/context/HRContext';
 import { Eye, EyeOff } from 'lucide-react';
@@ -6,7 +6,6 @@ import logo from '@/assets/logo.png';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { useActivityLog } from '@/context/ActivityLogContext';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -17,7 +16,6 @@ export default function LoginPage() {
   const { login, signUp, isLoggedIn } = useHR();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { logActivity } = useActivityLog();
 
   if (isLoggedIn) return <Navigate to="/dashboard" replace />;
 
@@ -41,10 +39,8 @@ export default function LoginPage() {
       const r = await login(clean, password);
       if (!r.ok) {
         toast({ title: 'Login Failed', description: r.error, variant: 'destructive' });
-        logActivity('Login Failed', 'Auth', `Failed login attempt for user: ${clean}`);
         return;
       }
-      logActivity('Logged In', 'Auth', `User "${clean}" logged in successfully`);
       navigate('/dashboard');
     } finally {
       setBusy(false);

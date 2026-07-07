@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+﻿import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useHR } from '@/context/HRContext';
 import { PayrollEntry, MONTHS, getYearOptions, calculatePayroll, formatCurrency } from '@/types/hr';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,6 @@ import { CalendarDays, Plus, Search, Eye, Pencil, Trash2, Download, FileText, In
 import { generatePayslipPDF } from '@/utils/pdfExport';
 import { TablePagination } from '@/components/TablePagination';
 import { supabase } from '@/integrations/supabase/client';
-import { useActivityLog } from '@/context/ActivityLogContext';
 
 interface PayrollFormData {
   employeeId: string;
@@ -49,7 +48,6 @@ const emptyForm = (): PayrollFormData => ({
 export default function PayrollPage() {
   const { employees, payroll, totalPayroll, fetchPayroll, setPayroll, roles } = useHR();
   const { toast } = useToast();
-  const { logActivity } = useActivityLog();
   const currentYear = new Date().getFullYear();
 
   const [filterMonth, setFilterMonth] = useState<string>('All');
@@ -222,7 +220,6 @@ export default function PayrollPage() {
         if (activeAdv) await updateAdvanceInDB(activeAdv, advDelta, `${form.month} ${form.year}`);
       }
       setPayroll(prev => prev.map(p => p.id === editingId ? newEntry : p));
-      logActivity('Updated', 'Payroll', `Payslip for ${emp.name} (${form.month} ${form.year}) updated`);
       toast({ title: 'Updated', description: `Payslip for ${emp.name} updated` });
     } else {
       // Validate + update advance balance directly in DB
@@ -240,7 +237,6 @@ export default function PayrollPage() {
         if (activeAdv) await updateAdvanceInDB(activeAdv, newEntry.advanceDeduction, `${form.month} ${form.year}`);
       }
       setPayroll(prev => [...prev, newEntry]);
-      logActivity('Created', 'Payroll', `Payslip for ${emp.name} (${form.month} ${form.year}) created — Net: ₹${newEntry.netPayable.toLocaleString()}`);
       toast({ title: 'Saved', description: `Payslip for ${emp.name} created` });
     }
     setFormOpen(false);
@@ -279,7 +275,6 @@ export default function PayrollPage() {
       }
     }
     setPayroll(prev => prev.filter(p => p.id !== deleteId));
-    logActivity('Deleted', 'Payroll', `Payslip for ${entry?.employeeName} (${entry?.month} ${entry?.year}) deleted`);
     toast({ title: 'Deleted', description: 'Payslip removed' });
     setDeleteId(null);
     doFetch();

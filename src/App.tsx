@@ -24,7 +24,6 @@ import NotFound from "./pages/NotFound";
 import ReportsPage from "./pages/ReportsPage";
 import CreateReportPage from "./pages/reports/CreateReportPage";
 import { ReportProvider } from "./context/ReportContext";
-import { ActivityLogProvider } from "./context/ActivityLogContext";
 
 const queryClient = new QueryClient();
 
@@ -34,7 +33,6 @@ const App = () => (
       <Toaster />
       <Sonner />
       <HRProvider>
-        <ActivityLogProvider>
         <QuotationProvider>
           <ReportProvider>
             <BrowserRouter>
@@ -64,7 +62,6 @@ const App = () => (
             </BrowserRouter>
           </ReportProvider>
         </QuotationProvider>
-        </ActivityLogProvider>
       </HRProvider>
     </TooltipProvider>
   </QueryClientProvider>

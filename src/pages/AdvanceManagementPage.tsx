@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { useHR } from '@/context/HRContext';
 import { Advance } from '@/types/hr';
 import { Button } from '@/components/ui/button';
@@ -13,12 +13,10 @@ import { Wallet, Plus, Pencil, Trash2 } from 'lucide-react';
 import { formatCurrency } from '@/types/hr';
 import { TablePagination } from '@/components/TablePagination';
 import { supabase } from '@/integrations/supabase/client';
-import { useActivityLog } from '@/context/ActivityLogContext';
 
 export default function AdvanceManagementPage() {
   const { employees, advances, totalAdvances, fetchAdvances, setAdvances } = useHR();
   const { toast } = useToast();
-  const { logActivity } = useActivityLog();
   const [showAdd, setShowAdd] = useState(false);
   const [editAdv, setEditAdv] = useState<Advance | null>(null);
   const [deleteAdv, setDeleteAdv] = useState<Advance | null>(null);
@@ -83,7 +81,6 @@ export default function AdvanceManagementPage() {
 
     setShowAdd(false);
     setForm({ employeeId: '', advanceDate: '', advanceAmount: '', deductionType: 'Manual', notes: '' });
-    logActivity('Created', 'Advances', `Advance of ₹${amt.toLocaleString()} added for ${emp.name} (${emp.id})`);
     toast({ title: 'Advance Added', description: `₹${amt.toLocaleString()} advance for ${emp.name}` });
     doFetch();
   };
@@ -127,7 +124,6 @@ export default function AdvanceManagementPage() {
     const desc = extra > 0
       ? `Advance for ${editAdv.employeeName}: ₹${extra.toLocaleString()} added (new total ₹${newAdvanceAmount.toLocaleString()})`
       : `Advance for ${editAdv.employeeName} details updated`;
-    logActivity('Updated', 'Advances', desc);
     toast({ title: 'Updated', description: extra > 0 ? `₹${extra.toLocaleString()} added to advance` : 'Advance details saved' });
     doFetch();
   };
@@ -135,7 +131,6 @@ export default function AdvanceManagementPage() {
   const handleDelete = () => {
     if (!deleteAdv) return;
     setAdvances(prev => prev.filter(a => a.id !== deleteAdv.id));
-    logActivity('Deleted', 'Advances', `Advance for ${deleteAdv.employeeName} (₹${deleteAdv.advanceAmount.toLocaleString()}) deleted`);
     toast({ title: 'Deleted', description: `Advance for ${deleteAdv.employeeName} removed` });
     setDeleteAdv(null);
     doFetch();
