@@ -25,6 +25,7 @@ export interface AdvanceHistoryEntry {
   date?: string;  // e.g., "2026-07-15" for additions
   amount: number;
   isAddition?: boolean;
+  isReturn?: boolean;
 }
 
 export interface Advance {

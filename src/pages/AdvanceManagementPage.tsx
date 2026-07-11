@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useHR } from '@/context/HRContext';
 import { Advance } from '@/types/hr';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ export default function AdvanceManagementPage() {
   const [deleteAdv, setDeleteAdv] = useState<Advance | null>(null);
   const [addAmount, setAddAmount] = useState<string>('');
   const [addDate, setAddDate] = useState<string>('');
+  const [addType, setAddType] = useState<'Addition' | 'Return'>('Addition');
   const [ledgerDateFrom, setLedgerDateFrom] = useState<string>('');
   const [ledgerDateTo, setLedgerDateTo] = useState<string>('');
   const [ledgerYear, setLedgerYear] = useState<string>('All');
@@ -91,21 +92,27 @@ export default function AdvanceManagementPage() {
     
     let newHistory = [...(editAdv.deductionHistory || [])];
     if (extra > 0 && addDate) {
-      newHistory.push({ date: addDate, amount: extra, isAddition: true });
+      if (addType === 'Addition') {
+        newHistory.push({ date: addDate, amount: extra, isAddition: true });
+      } else {
+        newHistory.push({ date: addDate, amount: extra, isReturn: true });
+      }
     } else if (extra > 0 && !addDate) {
-      toast({ title: 'Error', description: 'Please select a date for the new advance amount', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Please select a date for the transaction', variant: 'destructive' });
       return;
     }
 
-    const newAdvanceAmount = editAdv.advanceAmount + extra;
-    const newBalance = Math.max(0, newAdvanceAmount - editAdv.totalDeducted);
-    const newStatus = (newBalance <= 0 && editAdv.totalDeducted > 0) ? 'Closed' : editAdv.status;
+    const newAdvanceAmount = addType === 'Addition' ? editAdv.advanceAmount + extra : editAdv.advanceAmount;
+    const newTotalDeducted = addType === 'Return' ? editAdv.totalDeducted + extra : editAdv.totalDeducted;
+    const newBalance = Math.max(0, newAdvanceAmount - newTotalDeducted);
+    const newStatus = (newBalance <= 0 && newTotalDeducted > 0) ? 'Closed' : editAdv.status;
 
     // Directly await the Supabase update so doFetch reads the updated row
     const { error } = await supabase
       .from('advances')
       .update({
         advance_amount: newAdvanceAmount,
+        total_deducted: newTotalDeducted,
         remaining_balance: newBalance,
         notes: editAdv.notes,
         status: newStatus,
@@ -121,10 +128,11 @@ export default function AdvanceManagementPage() {
     setEditAdv(null);
     setAddAmount('');
     setAddDate('');
+    setAddType('Addition');
     const desc = extra > 0
-      ? `Advance for ${editAdv.employeeName}: ₹${extra.toLocaleString()} added (new total ₹${newAdvanceAmount.toLocaleString()})`
+      ? `Advance for ${editAdv.employeeName}: ₹${extra.toLocaleString()} ${addType === 'Addition' ? 'added' : 'returned'} (new balance ₹${newBalance.toLocaleString()})`
       : `Advance for ${editAdv.employeeName} details updated`;
-    toast({ title: 'Updated', description: extra > 0 ? `₹${extra.toLocaleString()} added to advance` : 'Advance details saved' });
+    toast({ title: 'Updated', description: extra > 0 ? `₹${extra.toLocaleString()} ${addType === 'Addition' ? 'added' : 'returned'}` : 'Advance details saved' });
     doFetch();
   };
 
@@ -251,7 +259,7 @@ export default function AdvanceManagementPage() {
       </Dialog>
 
       {/* Edit Dialog (Ledger) */}
-      <Dialog open={!!editAdv} onOpenChange={() => { setEditAdv(null); setAddAmount(''); setAddDate(''); setLedgerDateFrom(''); setLedgerDateTo(''); setLedgerYear('All'); }}>
+      <Dialog open={!!editAdv} onOpenChange={() => { setEditAdv(null); setAddAmount(''); setAddDate(''); setAddType('Addition'); setLedgerDateFrom(''); setLedgerDateTo(''); setLedgerYear('All'); }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Advance Ledger</DialogTitle></DialogHeader>
           {editAdv && (
@@ -354,8 +362,8 @@ export default function AdvanceManagementPage() {
                           })()}
                         </TableCell>
                         <TableCell>
-                          <Badge variant={entry.isAddition ? "default" : "secondary"}>
-                            {entry.isAddition ? 'Additional Advance' : 'Payroll Deduction'}
+                          <Badge variant={entry.isAddition ? "default" : (entry.isReturn ? "outline" : "secondary")}>
+                            {entry.isAddition ? 'Additional Advance' : (entry.isReturn ? 'Return' : 'Payroll Deduction')}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right font-mono text-success">
@@ -378,8 +386,18 @@ export default function AdvanceManagementPage() {
 
               {/* Add Amount Form */}
               <div className="bg-muted/30 p-4 rounded-lg border border-border/50 space-y-4">
-                <h3 className="text-sm font-medium">Record Additional Advance</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <h3 className="text-sm font-medium">Record Transaction</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-xs font-medium block mb-1">Type</label>
+                    <Select value={addType} onValueChange={(v) => setAddType(v as 'Addition' | 'Return')}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Addition">Additional Advance</SelectItem>
+                        <SelectItem value="Return">Return (Repayment)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div>
                     <label className="text-xs font-medium block mb-1">Date</label>
                     <Input type="date" value={addDate} onChange={e => setAddDate(e.target.value)} />
@@ -391,7 +409,7 @@ export default function AdvanceManagementPage() {
                 </div>
                 {(() => {
                   const extra = parseFloat(addAmount) || 0;
-                  const newBalance = editAdv.remainingBalance + extra;
+                  const newBalance = addType === 'Addition' ? editAdv.remainingBalance + extra : Math.max(0, editAdv.remainingBalance - extra);
                   return extra > 0 ? (
                     <p className="text-xs">
                       <span className="text-muted-foreground">New Balance will be: </span>

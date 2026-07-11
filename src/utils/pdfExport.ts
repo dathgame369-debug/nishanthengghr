@@ -111,6 +111,14 @@ export function generateBulkPayslipPDF(
       const emp = employees.find((e) => e.id === entry.employeeId);
       renderPayslip(doc, entry, emp, 15, false, allPayroll, advances);
     });
+  } else if (layout === "2") {
+    entries.forEach((entry, i) => {
+      const pos = i % 2;
+      if (i > 0 && pos === 0) doc.addPage();
+      const y = 15 + pos * 145;
+      const emp = employees.find((e) => e.id === entry.employeeId);
+      renderPayslip(doc, entry, emp, y, true, allPayroll, advances);
+    });
   } else {
     const margin = 6;
     const gapX = 5;
@@ -120,8 +128,7 @@ export function generateBulkPayslipPDF(
     
     let cols = 2;
     let rows = 3;
-    if (layout === "2") { cols = 1; rows = 2; }
-    else if (layout === "4") { cols = 2; rows = 2; }
+    if (layout === "4") { cols = 2; rows = 2; }
     else if (layout === "6") { cols = 2; rows = 3; }
     
     const slipW = (pageW - margin * 2 - gapX * (cols - 1)) / cols;
@@ -136,7 +143,7 @@ export function generateBulkPayslipPDF(
       const x = margin + col * (slipW + gapX);
       const y = margin + row * (slipH + gapY);
       const emp = employees.find((e) => e.id === entry.employeeId);
-      renderPayslipMini(doc, entry, emp, x, y, slipW, slipH, allPayroll, advances);
+      renderPayslipMini(doc, entry, emp, x, y, slipW, slipH, layout, allPayroll, advances);
     });
   }
 
@@ -151,6 +158,7 @@ function renderPayslipMini(
   y: number,
   w: number,
   h: number,
+  layout: "4" | "6",
   allPayroll: PayrollEntry[] = [],
   allAdvances: Advance[] = []
 ) {
@@ -166,7 +174,16 @@ function renderPayslipMini(
   doc.setLineWidth(0.3);
   doc.rect(x, y, w, h);
 
-  const headerH = 11;
+  const isL4 = layout === "4";
+  const headerH = isL4 ? 17 : 13;
+  const fTitle = isL4 ? 9.5 : 8.5;
+  const fAddr = isL4 ? 6 : 5.5;
+  const fSlip = isL4 ? 7.5 : 7;
+  const logoSize = isL4 ? 11 : 9;
+
+  // Shift center rightward to account for logo width and prevent overlap
+  const textCx = x + (w + logoSize + 2) / 2;
+
   doc.setFillColor(220, 234, 248);
   doc.rect(x, y, w, headerH, "F");
   doc.setDrawColor(180, 210, 240);
@@ -174,23 +191,24 @@ function renderPayslipMini(
   doc.rect(x, y, w, headerH);
   doc.setTextColor(30, 58, 95);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.text((company.name || "").toUpperCase(), x + w / 2, y + 4, { align: "center" });
+  doc.setFontSize(fTitle);
+  doc.text((company.name || "").toUpperCase(), textCx, y + (isL4 ? 5.5 : 4.5), { align: "center", maxWidth: w - logoSize - 6 });
   try {
-    doc.addImage(logo, "PNG", x + 1.5, y + 1, 9, 9);
+    doc.addImage(logo, "PNG", x + 1.5, y + 1.5, logoSize, logoSize);
   } catch {}
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(5.5);
+  doc.setFontSize(fAddr);
   const addrShort = (company.address || "").split("\n")[0].slice(0, 80);
-  doc.text(addrShort, x + w / 2, y + 7, { align: "center" });
+  doc.text(addrShort, textCx, y + (isL4 ? 9.5 : 8), { align: "center", maxWidth: w - logoSize - 4 });
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7);
-  doc.text(`PAYSLIP — ${entry.month.toUpperCase()} ${entry.year || ""}`, x + w / 2, y + 10, { align: "center" });
+  doc.setFontSize(fSlip);
+  doc.text(`PAYSLIP — ${entry.month.toUpperCase()} ${entry.year || ""}`, textCx, y + (isL4 ? 14 : 11.5), { align: "center" });
   doc.setTextColor(0, 0, 0);
 
-  let iy = y + headerH + 2.5;
-  const lh = 3.2;
-  doc.setFontSize(7);
+  let iy = y + headerH + (isL4 ? 5 : 3);
+  const lh = isL4 ? 4.5 : 3.2;
+  const fPair = isL4 ? 7.5 : 7;
+  doc.setFontSize(fPair);
   const pair = (lx: number, label: string, value: string) => {
     doc.setFont("helvetica", "normal");
     doc.setTextColor(110, 110, 110);
@@ -198,7 +216,7 @@ function renderPayslipMini(
     doc.setFont("helvetica", "bold");
     doc.setTextColor(0, 0, 0);
     const v = doc.splitTextToSize(value, w / 2 - 18)[0];
-    doc.text(v, lx + 16, iy);
+    doc.text(v, lx + (isL4 ? 18 : 16), iy);
   };
   pair(x + 2, "ID", entry.employeeId);
   pair(x + w / 2, "Date", entry.date ? entry.date.split('-').reverse().join('-') : "");
@@ -212,6 +230,8 @@ function renderPayslipMini(
   pair(x + w / 2, "Leaves", String(calcLeaves));
 
   const tableTop = iy + 2;
+  const tPad = isL4 ? 2 : 0.6;
+  const tFont = isL4 ? 7.5 : 5.5;
 
   const earningsMiniRows = [
     ["Monthly Salary",                        money(entry.monthlySalary)],
@@ -227,12 +247,12 @@ function renderPayslipMini(
     startY: tableTop,
     head: [[
       { content: "EARNINGS", styles: { halign: "left" } },
-      { content: "AMT", styles: { halign: "right" } },
+      { content: "AMOUNT", styles: { halign: "right" } },
     ]],
     body: earningsMiniRows,
     theme: "grid",
-    styles: { fontSize: 5.5, cellPadding: 0.6, lineColor: [0, 0, 0], lineWidth: 0.2 },
-    headStyles: { fillColor: [220, 234, 248], textColor: [30, 58, 95], fontSize: 5.5, fontStyle: 'bold' },
+    styles: { fontSize: tFont, cellPadding: tPad, lineColor: [0, 0, 0], lineWidth: 0.2 },
+    headStyles: { fillColor: [220, 234, 248], textColor: [30, 58, 95], fontSize: tFont, fontStyle: 'bold' },
     columnStyles: {
       0: { textColor: [80, 80, 80] },
       1: { halign: "right", fontStyle: "bold" },
@@ -241,14 +261,14 @@ function renderPayslipMini(
     tableWidth: w - 4,
   });
 
-  const deductionMiniTop = (doc as any).lastAutoTable.finalY + 1;
+  const deductionMiniTop = (doc as any).lastAutoTable.finalY + (isL4 ? 1.5 : 1);
   const miniBalanceAdv = getBalanceAtMonth(entry.employeeId, entry.month, entry.year || new Date().getFullYear(), allPayroll, allAdvances);
 
   autoTable(doc, {
     startY: deductionMiniTop,
     head: [[
       { content: "DEDUCTIONS", styles: { halign: "left" } },
-      { content: "AMT", styles: { halign: "right" } },
+      { content: "AMOUNT", styles: { halign: "right" } },
     ]],
     body: [
       ["Adv Ded.", money(entry.advanceDeduction)],
@@ -256,8 +276,8 @@ function renderPayslipMini(
       ["Balance Advance", money(miniBalanceAdv)],
     ],
     theme: "grid",
-    styles: { fontSize: 5.5, cellPadding: 0.6, lineColor: [0, 0, 0], lineWidth: 0.2 },
-    headStyles: { fillColor: [253, 232, 232], textColor: [122, 35, 35], fontSize: 5.5, fontStyle: 'bold' },
+    styles: { fontSize: tFont, cellPadding: tPad, lineColor: [0, 0, 0], lineWidth: 0.2 },
+    headStyles: { fillColor: [253, 232, 232], textColor: [122, 35, 35], fontSize: tFont, fontStyle: 'bold' },
     columnStyles: {
       0: { textColor: [80, 80, 80] },
       1: { halign: "right", fontStyle: "bold" },
@@ -266,8 +286,9 @@ function renderPayslipMini(
     tableWidth: w - 4,
   });
 
-  const ny = (doc as any).lastAutoTable.finalY + 1.5;
-  const netH = 6;
+  const ny = (doc as any).lastAutoTable.finalY + (isL4 ? 2 : 1.5);
+  const netH = isL4 ? 8 : 6;
+  const fNet = isL4 ? 9 : 8;
   doc.setFillColor(220, 234, 248);
   doc.rect(x + 2, ny, w - 4, netH, "F");
   doc.setDrawColor(180, 210, 240);
@@ -275,9 +296,9 @@ function renderPayslipMini(
   doc.rect(x + 2, ny, w - 4, netH);
   doc.setTextColor(30, 58, 95);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.text("NET SALARY", x + 5, ny + 4);
-  doc.text(money(calculatedNet), x + w - 5, ny + 4, { align: "right" });
+  doc.setFontSize(fNet);
+  doc.text("NET SALARY", x + 5, ny + (isL4 ? 5.5 : 4));
+  doc.text(money(calculatedNet), x + w - 5, ny + (isL4 ? 5.5 : 4), { align: "right" });
   doc.setTextColor(0, 0, 0);
 }
 
