@@ -25,8 +25,8 @@ export function exportReportExcel(data: Report) {
         const sheetName = `Page_${pageIndex + 1}`;
         const sheetData: any[][] = [];
 
-        // Header Rows
-        sheetData.push(['NISHANTH ENGINEERING PORTAL']);
+        // Fixed Header rows
+        sheetData.push(['NISHANTH ENGINEERING WORKS']);
         sheetData.push(['PATTERN INSPECTION REPORT']);
         
         // Row 3
