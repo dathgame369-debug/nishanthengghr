@@ -71,7 +71,7 @@ export function generateQuotationPDF(q: Quotation, items: QuotationItem[]) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.setTextColor(0);
-  const nameLines = doc.splitTextToSize(`M/s. ${q.customerName}`, leftW - 6);
+  const nameLines = doc.splitTextToSize(`${q.customerName}`, leftW - 6);
   doc.text(nameLines, margin + 3, y + 11);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
