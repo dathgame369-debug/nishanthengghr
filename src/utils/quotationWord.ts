@@ -216,7 +216,7 @@ export async function generateQuotationWord(q: Quotation, items: QuotationItem[]
               }),
               new Paragraph({
                 spacing: { after: 20 },
-                children: [new TextRun({ text: `M/s. ${q.customerName}`, bold: true, size: 22, font: "Times New Roman" })],
+                children: [new TextRun({ text: `${q.customerName}`, bold: true, size: 22, font: "Times New Roman" })],
               }),
               new Paragraph({
                 spacing: { after: 20 },
