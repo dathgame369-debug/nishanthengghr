@@ -600,9 +600,9 @@ export function exportPayrollExcel(entries: PayrollEntry[]) {
 
 export function exportPayrollPDF(entries: PayrollEntry[]) {
   const doc = new jsPDF("l", "mm", "a4");
-  doc.setFontSize(14);
+  doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
-  doc.text("Nishanth Engineering Portal — Payroll Summary", 15, 15);
+  doc.text("Nishanth Engineering Works — Payroll Summary", 15, 15);
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   doc.text(`Month: ${entries[0]?.month || "All"} ${entries[0]?.year || ""}`, 15, 22);
