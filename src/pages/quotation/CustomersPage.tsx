@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useQuotation } from '@/context/QuotationContext';
 import { Customer } from '@/types/quotation';
 import { Button } from '@/components/ui/button';
@@ -146,7 +146,7 @@ export default function CustomersPage() {
           <div className="space-y-3">
             <div>
               <label className="text-sm font-medium block mb-1">Client Name *</label>
-              <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="M/s. ABC Pvt Ltd" />
+              <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="ABC Pvt Ltd" />
             </div>
             <div>
               <label className="text-sm font-medium block mb-1">Address</label>
