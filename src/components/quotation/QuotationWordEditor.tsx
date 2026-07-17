@@ -357,7 +357,7 @@ export function QuotationWordEditor({ form, items, onChange }: Props) {
                         >
                           <div style={{ fontSize: 10, color: "#777", marginBottom: 2 }}>To,</div>
                           <div style={{ fontWeight: 700, fontSize: 13 }}>
-                            M/s. {form.customerName || "—"}
+                            {form.customerName || "—"}
                           </div>
                           <div
                             style={{
