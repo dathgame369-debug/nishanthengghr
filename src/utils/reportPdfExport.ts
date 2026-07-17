@@ -95,7 +95,7 @@ export function exportReportPDF(data: Report) {
       let currentY = margin;
       const startX = margin;
 
-      drawCell(startX, currentY, totalTableWidth, 20, 'NISHANTH ENGINEERING PORTAL', { align: 'center', bold: true, fontSize: 12, valign: 'center' });
+      drawCell(startX, currentY, totalTableWidth, 20, 'NISHANTH ENGINEERING WORKS', { align: 'center', bold: true, fontSize: 12, valign: 'center' });
       currentY += 20;
 
       drawCell(startX, currentY, totalTableWidth, 20, 'PATTERN INSPECTION REPORT', { align: 'center', bold: true, fontSize: 12, valign: 'center' });
