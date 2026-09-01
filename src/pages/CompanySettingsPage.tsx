@@ -1,5 +1,5 @@
-﻿import { useRef, useState } from 'react';
-import { Building2, Upload, Save, Trash2, ListChecks, Lock } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Building2, Upload, Save, Trash2, ListChecks, Lock, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -34,6 +34,8 @@ export default function CompanySettingsPage() {
   const { session, updateCredentials } = useHR();
 
   const [accForm, setAccForm] = useState({ username: session?.user?.email || '', password: '', confirm: '' });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const handleLogoUpload = (file: File) => {
     if (file.size > 1024 * 1024) {
@@ -190,11 +192,43 @@ export default function CompanySettingsPage() {
             </div>
             <div className="border-t border-border pt-4">
               <label className="text-sm font-medium block mb-1">New Password (leave blank to keep current)</label>
-              <Input type="password" value={accForm.password} onChange={e => setAccForm(f => ({ ...f, password: e.target.value }))} placeholder="Enter new password" />
+              <div className="relative">
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  value={accForm.password}
+                  onChange={e => setAccForm(f => ({ ...f, password: e.target.value }))}
+                  placeholder="Enter new password"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => setShowPassword(v => !v)}
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
             <div>
               <label className="text-sm font-medium block mb-1">Confirm New Password</label>
-              <Input type="password" value={accForm.confirm} onChange={e => setAccForm(f => ({ ...f, confirm: e.target.value }))} placeholder="Confirm new password" />
+              <div className="relative">
+                <Input
+                  type={showConfirm ? 'text' : 'password'}
+                  value={accForm.confirm}
+                  onChange={e => setAccForm(f => ({ ...f, confirm: e.target.value }))}
+                  placeholder="Confirm new password"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => setShowConfirm(v => !v)}
+                  tabIndex={-1}
+                >
+                  {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
             <Button onClick={saveAccount} variant="outline" className="w-full mt-2">Update Credentials</Button>
           </div>

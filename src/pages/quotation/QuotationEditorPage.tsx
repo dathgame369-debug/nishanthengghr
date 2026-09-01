@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, Save, Download, ArrowLeft } from "lucide-react";
+import { FileText, Save, Download, ArrowLeft, BookmarkCheck } from "lucide-react";
 import { generateQuotationPDF } from "@/utils/quotationPdf";
 import { QuotationWordEditor } from "@/components/quotation/QuotationWordEditor";
 
@@ -56,7 +56,7 @@ export default function QuotationEditorPage() {
   const isNew = !id || id === "new";
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { customers, settings, saveQuotation, bumpSequence, fetchItemsByQuotationId } = useQuotation();
+  const { customers, settings, saveQuotation, bumpSequence, fetchItemsByQuotationId, saveSettings } = useQuotation();
 
   const [form, setForm] = useState<Quotation>({
     id: crypto.randomUUID(),
@@ -80,6 +80,7 @@ export default function QuotationEditorPage() {
   });
   const [lineItems, setLineItems] = useState<QuotationItem[]>([]);
   const [saving, setSaving] = useState(false);
+  const [savingTerms, setSavingTerms] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
 
   // Load quotation + items from DB when editing
@@ -201,6 +202,18 @@ export default function QuotationEditorPage() {
   const handleDownload = () => {
     const { q, its } = buildFinal();
     generateQuotationPDF(q, its);
+  };
+
+  const handleSaveDefaultTerms = async () => {
+    setSavingTerms(true);
+    try {
+      await saveSettings({ ...settings, defaultTerms: form.terms });
+      toast({ title: 'Default Terms Saved', description: 'These terms will appear in all new quotations automatically.' });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally {
+      setSavingTerms(false);
+    }
   };
 
   return (
@@ -362,10 +375,25 @@ export default function QuotationEditorPage() {
 
       {/* Terms & Conditions */}
       <div className="bg-card rounded-xl border border-border p-4">
-        <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-2">
-          Terms & Conditions
-        </h3>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
+            Terms &amp; Conditions
+          </h3>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSaveDefaultTerms}
+            disabled={savingTerms}
+            className="h-7 text-xs gap-1.5"
+          >
+            <BookmarkCheck className="w-3.5 h-3.5" />
+            {savingTerms ? 'Saving...' : 'Save as Default'}
+          </Button>
+        </div>
         <Textarea rows={4} value={form.terms} onChange={(e) => setForm((f) => ({ ...f, terms: e.target.value }))} />
+        <p className="text-xs text-muted-foreground mt-1.5">
+          Edit terms above then click <strong>Save as Default</strong> to auto-fill these in all future quotations.
+        </p>
       </div>
     </div>
   );

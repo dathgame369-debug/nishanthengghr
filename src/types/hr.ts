@@ -20,6 +20,16 @@ export interface Employee {
   otherDeductions?: number;
 }
 
+export interface SalaryHistory {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  effectiveMonth: string;
+  effectiveYear: number;
+  basicSalary: number;
+  createdAt?: string;
+}
+
 export interface AdvanceHistoryEntry {
   month?: string; // e.g., "July 2026" for payroll deductions
   date?: string;  // e.g., "2026-07-15" for additions

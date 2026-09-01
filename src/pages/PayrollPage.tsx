@@ -1,4 +1,4 @@
-﻿import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useHR } from '@/context/HRContext';
 import { PayrollEntry, MONTHS, getYearOptions, calculatePayroll, formatCurrency } from '@/types/hr';
 import { Button } from '@/components/ui/button';
@@ -222,6 +222,23 @@ export default function PayrollPage() {
       setPayroll(prev => prev.map(p => p.id === editingId ? newEntry : p));
       toast({ title: 'Updated', description: `Payslip for ${emp.name} updated` });
     } else {
+      // ── Duplicate check: only one payslip per employee per month ──
+      const { data: existing } = await supabase
+        .from('payroll')
+        .select('id')
+        .eq('employee_id', form.employeeId)
+        .eq('month', form.month)
+        .eq('year', form.year)
+        .maybeSingle();
+      if (existing) {
+        toast({
+          title: 'Payslip Already Exists',
+          description: `A payslip for ${emp.name} in ${form.month} ${form.year} already exists. Edit the existing record instead.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
       // Validate + update advance balance directly in DB
       if (newEntry.advanceDeduction > 0) {
         const { data: activeAdv } = await supabase

@@ -1,18 +1,20 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useHR } from '@/context/HRContext';
 import { Employee, generateEmployeeId } from '@/types/hr';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, Upload } from 'lucide-react';
 import { usePayslipComponents } from '@/hooks/useCompanySettings';
 import {
   ComponentAmounts, computeComponentDefaults,
   COMPONENT_LABELS, COMPONENT_FORMULA_HINT,
 } from '@/utils/payslipFormulas';
+import { UniversalImportModal } from '@/components/UniversalImportModal';
 
 export default function AddEmployeePage() {
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const { employees, setEmployees, departments, roles } = useHR();
   const { toast } = useToast();
   const [components] = usePayslipComponents();
@@ -93,10 +95,14 @@ export default function AddEmployeePage() {
         <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
           <UserPlus className="w-5 h-5 text-primary-foreground" />
         </div>
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-bold font-heading text-foreground">Add Employee</h1>
           <p className="text-sm text-muted-foreground">Register a new employee</p>
         </div>
+        <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
+          <Upload className="w-4 h-4 mr-2" />
+          Import Data
+        </Button>
       </div>
 
       <div className="bg-card rounded-xl p-6 card-shadow border border-border">
@@ -196,6 +202,7 @@ export default function AddEmployeePage() {
           </Button>
         </form>
       </div>
+      <UniversalImportModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} />
     </div>
   );
 }
