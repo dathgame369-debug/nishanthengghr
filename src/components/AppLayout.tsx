@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Outlet, Navigate } from 'react-router-dom';
 import { useHR } from '@/context/HRContext';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
 import AppSidebar from './AppSidebar';
 import { Menu, Building2 } from 'lucide-react';
 
 export default function AppLayout() {
   const { isLoggedIn } = useHR();
+  useAuthGuard(); // Verify JWT signature & expiry on every protected route
   const [mobileOpen, setMobileOpen] = useState(false);
   if (!isLoggedIn) return <Navigate to="/" replace />;
 

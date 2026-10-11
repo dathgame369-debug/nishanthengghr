@@ -3,6 +3,10 @@ import { Employee, Advance, PayrollEntry, Department, Role } from '@/types/hr';
 import { supabase } from '@/integrations/supabase/client';
 import type { Session } from '@supabase/supabase-js';
 import { hashPassword } from '@/utils/crypto';
+import { signJWT, verifyJWT, decodeJWTPayload, type JWTPayload } from '@/utils/jwt';
+
+/** localStorage key where the signed JWT is persisted. */
+export const JWT_TOKEN_KEY = 'hr_jwt';
 
 type Setter<T> = React.Dispatch<React.SetStateAction<T[]>>;
 
@@ -16,6 +20,10 @@ interface HRContextType {
   isLoggedIn: boolean;
   loading: boolean;
   session: Session | null;
+  /** The raw JWT string (HS256) stored in localStorage, or null when logged out. */
+  token: string | null;
+  /** Decoded JWT payload — available when isLoggedIn is true. */
+  tokenPayload: JWTPayload | null;
   login: (username: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   signUp: (username: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   logout: () => Promise<void>;
@@ -132,6 +140,8 @@ function diffArrays<T extends { id: string }>(prev: T[], next: T[]) {
 
 export function HRProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [tokenPayload, setTokenPayload] = useState<JWTPayload | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -148,17 +158,28 @@ export function HRProvider({ children }: { children: React.ReactNode }) {
 
   const isLoggedIn = !!session;
 
-  // Auth bootstrap
+  // Auth bootstrap — verify stored JWT before restoring session
   useEffect(() => {
-    const savedSession = localStorage.getItem('hr_session');
-    if (savedSession) {
-      try {
-        setSession(JSON.parse(savedSession));
-      } catch (e) {
-        console.error('Failed to parse saved session', e);
+    (async () => {
+      // Migrate old plain-object sessions (pre-JWT) — remove them
+      localStorage.removeItem('hr_session');
+
+      const storedToken = localStorage.getItem(JWT_TOKEN_KEY);
+      if (storedToken) {
+        const result = await verifyJWT(storedToken);
+        if (result.valid && result.payload) {
+          const dummySession = { user: { email: result.payload.sub } } as unknown as Session;
+          setSession(dummySession);
+          setToken(storedToken);
+          setTokenPayload(result.payload);
+        } else {
+          // Token invalid or expired — clear it
+          localStorage.removeItem(JWT_TOKEN_KEY);
+          console.warn('[auth] Stored JWT rejected:', result.error);
+        }
       }
-    }
-    setAuthReady(true);
+      setAuthReady(true);
+    })();
   }, []);
 
   // Load reference tables when logged in (employees, departments, roles)
@@ -300,6 +321,42 @@ export function HRProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (username: string, password: string) => {
     const hashedPassword = await hashPassword(password);
+
+    // ── Primary path: call the Edge Function (JWT signed server-side) ──────
+    const edgeFunctionUrl = import.meta.env.VITE_AUTH_FUNCTION_URL as string | undefined;
+    if (edgeFunctionUrl) {
+      try {
+        const res = await fetch(edgeFunctionUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          // Send the already-hashed password — raw password never leaves this machine
+          body: JSON.stringify({ username, password: hashedPassword }),
+        });
+
+        if (res.ok) {
+          const { token: jwt } = await res.json() as { token: string };
+          const payload = decodeJWTPayload(jwt);
+          const dummySession = { user: { email: username } } as unknown as Session;
+          setSession(dummySession);
+          setToken(jwt);
+          setTokenPayload(payload);
+          localStorage.setItem(JWT_TOKEN_KEY, jwt);
+          return { ok: true };
+        }
+
+        // 401 = wrong credentials
+        if (res.status === 401) {
+          return { ok: false, error: 'Wrong username or password' };
+        }
+
+        // Other HTTP error — fall through to client-side fallback below
+        console.warn('[auth] Edge Function returned', res.status, '— falling back to client-side signing');
+      } catch (fetchErr) {
+        console.warn('[auth] Edge Function unreachable — falling back to client-side signing:', fetchErr);
+      }
+    }
+
+    // ── Fallback path: client-side signing (local dev / offline) ───────────
     const { data, error } = await supabase
       .from('login_credentials')
       .select('username')
@@ -311,11 +368,23 @@ export function HRProvider({ children }: { children: React.ReactNode }) {
       return { ok: false, error: 'Wrong username or password' };
     }
 
+    let jwt: string;
+    try {
+      jwt = await signJWT(username, 'admin');
+    } catch (jwtErr) {
+      console.error('[auth] JWT signing failed:', jwtErr);
+      return { ok: false, error: 'Could not create session token. Is VITE_JWT_SECRET set?' };
+    }
+
+    const payload = decodeJWTPayload(jwt);
     const dummySession = { user: { email: username } } as unknown as Session;
     setSession(dummySession);
-    localStorage.setItem('hr_session', JSON.stringify(dummySession));
+    setToken(jwt);
+    setTokenPayload(payload);
+    localStorage.setItem(JWT_TOKEN_KEY, jwt);
     return { ok: true };
   }, []);
+
 
   const signUp = useCallback(async (username: string, password: string) => {
     const hashedPassword = await hashPassword(password);
@@ -347,23 +416,36 @@ export function HRProvider({ children }: { children: React.ReactNode }) {
       return { ok: false, error: error.message };
     }
 
-    // Update local session
+    // Re-issue a JWT for the new username
+    let jwt: string;
+    try {
+      jwt = await signJWT(newUsername, 'admin');
+    } catch (jwtErr) {
+      return { ok: false, error: 'Could not refresh session token.' };
+    }
+
+    const payload = decodeJWTPayload(jwt);
     const dummySession = { user: { email: newUsername } } as unknown as Session;
     setSession(dummySession);
-    localStorage.setItem('hr_session', JSON.stringify(dummySession));
+    setToken(jwt);
+    setTokenPayload(payload);
+    localStorage.setItem(JWT_TOKEN_KEY, jwt);
     return { ok: true };
   }, [session]);
 
   const logout = useCallback(async () => {
     setSession(null);
-    localStorage.removeItem('hr_session');
+    setToken(null);
+    setTokenPayload(null);
+    localStorage.removeItem(JWT_TOKEN_KEY);
   }, []);
 
   if (!authReady) return null;
 
   return (
     <HRContext.Provider value={{
-      isLoggedIn, loading, session, login, signUp, logout, updateCredentials,
+      isLoggedIn, loading, session, token, tokenPayload,
+      login, signUp, logout, updateCredentials,
       employees, setEmployees, departments, setDepartments, roles, setRoles,
       payroll, totalPayroll, fetchPayroll, setPayroll,
       advances, totalAdvances, fetchAdvances, setAdvances,
