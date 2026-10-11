@@ -112,6 +112,14 @@ export default function CompanySettingsPage() {
             <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
           </div>
           <div>
+            <label className="text-sm font-medium block mb-1">Tagline / Business Line</label>
+            <Input
+              value={form.tagline ?? ''}
+              onChange={e => setForm(f => ({ ...f, tagline: e.target.value }))}
+              placeholder="MFRS OF : ALL KINDS OF WOODEN AND ALUMINUM PATTERNS"
+            />
+          </div>
+          <div>
             <label className="text-sm font-medium block mb-1">Address</label>
             <Textarea rows={3} value={form.address}
               onChange={e => setForm(f => ({ ...f, address: e.target.value }))} />

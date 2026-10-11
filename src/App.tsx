@@ -12,6 +12,7 @@ import EmployeeListPage from "./pages/EmployeeListPage";
 import PayrollPage from "./pages/PayrollPage";
 import AdvanceManagementPage from "./pages/AdvanceManagementPage";
 import PayslipPage from "./pages/PayslipPage";
+import DocumentationCenterPage from "./pages/DocumentationCenterPage";
 import SettingsPage from "./pages/SettingsPage";
 import CompanySettingsPage from "./pages/CompanySettingsPage";
 import QuotationDashboard from "./pages/quotation/QuotationDashboard";
@@ -45,6 +46,7 @@ const App = () => (
                 <Route path="/payroll" element={<PayrollPage />} />
                 <Route path="/advances" element={<AdvanceManagementPage />} />
                 <Route path="/payslip" element={<PayslipPage />} />
+                <Route path="/documentation-center" element={<DocumentationCenterPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/company-settings" element={<CompanySettingsPage />} />
                 <Route path="/quotations/dashboard" element={<QuotationDashboard />} />

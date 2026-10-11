@@ -1,5 +1,6 @@
 export interface CompanyInfo {
   name: string;
+  tagline?: string;
   address: string;
   phone: string;
   email: string;
@@ -22,6 +23,7 @@ export interface PayslipComponents {
 
 export const DEFAULT_COMPANY: CompanyInfo = {
   name: 'Nishanth Engineering Works',
+  tagline: 'MFRS OF : ALL KINDS OF WOODEN AND ALUMINUM PATTERNS',
   address:
     '102/1, Subbanaickenpalayam School Street, Chinnavedampatti, Coimbatore, Tamil Nadu 641049',
   phone: '0422-2532130 / 94426 32130',

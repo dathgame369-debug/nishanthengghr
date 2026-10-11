@@ -30,7 +30,7 @@ export default function AppLayout() {
           </div>
           <div className="leading-tight">
             <p className="text-sm font-bold text-foreground">Nishanth</p>
-            <p className="text-[10px] text-muted-foreground -mt-0.5">Engineering Portal</p>
+            <p className="text-[10px] text-muted-foreground -mt-0.5">Engineering Works</p>
           </div>
         </div>
       </header>

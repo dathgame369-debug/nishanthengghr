@@ -4,7 +4,8 @@ import { useHR } from '@/context/HRContext';
 import {
   LayoutDashboard, Users, CalendarDays,
   Wallet, FileText, LogOut, Settings, X,
-  Briefcase, FileSpreadsheet, Building2, ChevronDown, ChevronRight, Settings2, Plus, Eye
+  Briefcase, FileSpreadsheet, Building2, ChevronDown, ChevronRight, Settings2, Plus, Eye,
+  Award
 } from 'lucide-react';
 import logo from '@/assets/logo.png';
 
@@ -20,6 +21,7 @@ const groups: NavGroup[] = [
       { path: '/payroll', label: 'Monthly Payroll', icon: CalendarDays },
       { path: '/advances', label: 'Advance Mgmt', icon: Wallet },
       { path: '/payslip', label: 'Payslip Generator', icon: FileText },
+      { path: '/documentation-center', label: 'Documentation Center', icon: Award },
       { path: '/settings', label: 'HR Settings', icon: Settings },
     ],
   },
@@ -109,11 +111,11 @@ export default function AppSidebar({ mobileOpen = false, onClose }: AppSidebarPr
       >
       <div className="flex items-center gap-3 px-5 py-6 border-b border-sidebar-border relative">
         <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center overflow-hidden">
-          <img src={logo} alt="Nishanth Engineering Portal" className="w-9 h-9 object-contain" />
+          <img src={logo} alt="Nishanth Engineering Works" className="w-9 h-9 object-contain" />
         </div>
         <div>
           <h1 className="text-sm font-bold text-sidebar-foreground leading-tight">Nishanth</h1>
-          <p className="text-xs text-sidebar-foreground/60">Engineering Portal</p>
+          <p className="text-xs text-sidebar-foreground/60">Engineering Works</p>
         </div>
         <button
           onClick={onClose}
