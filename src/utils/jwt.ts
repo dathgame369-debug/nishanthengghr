@@ -10,7 +10,8 @@
 
 export interface JWTPayload {
   sub: string;        // username
-  role: string;       // e.g. "admin" | "user"
+  role: string;       // custom role title
+  permissions?: string[]; // allowed sections, or ['all']
   iat: number;        // issued-at  (Unix seconds)
   exp: number;        // expires-at (Unix seconds)
 }
@@ -60,12 +61,14 @@ const JWT_SECRET = import.meta.env.VITE_JWT_SECRET as string | undefined;
 /**
  * Sign a JWT with HS256.
  * @param username  Subject claim
- * @param role      Role claim (e.g. "admin")
+ * @param role      Role title
+ * @param permissions List of allowed module keys
  * @param expiresInSeconds  Token lifetime in seconds (default 8 h)
  */
 export async function signJWT(
   username: string,
   role: string = 'admin',
+  permissions: string[] = ['all'],
   expiresInSeconds: number = 8 * 60 * 60
 ): Promise<string> {
   const secret = JWT_SECRET;
@@ -79,6 +82,7 @@ export async function signJWT(
   const payload: JWTPayload = {
     sub: username,
     role,
+    permissions,
     iat: now,
     exp: now + expiresInSeconds,
   };

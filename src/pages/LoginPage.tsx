@@ -13,11 +13,28 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [busy, setBusy] = useState(false);
-  const { login, signUp, isLoggedIn } = useHR();
+  const { login, signUp, isLoggedIn, canAccess } = useHR();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  if (isLoggedIn) return <Navigate to="/dashboard" replace />;
+  const getLandingRoute = () => {
+    if (canAccess('dashboard')) return '/dashboard';
+    if (canAccess('quotations')) return '/quotations/dashboard';
+    if (canAccess('employees')) return '/employees';
+    if (canAccess('reports')) return '/reports';
+    if (canAccess('customers')) return '/customers';
+    if (canAccess('payroll')) return '/payroll';
+    if (canAccess('advances')) return '/advances';
+    if (canAccess('payslip')) return '/payslip';
+    if (canAccess('documentation')) return '/documentation-center';
+    if (canAccess('company_settings')) return '/company-settings';
+    if (canAccess('user_management')) return '/user-management';
+    return '/dashboard';
+  };
+
+  if (isLoggedIn) {
+    return <Navigate to={getLandingRoute()} replace />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +58,21 @@ export default function LoginPage() {
         toast({ title: 'Login Failed', description: r.error, variant: 'destructive' });
         return;
       }
-      navigate('/dashboard');
+      const perms = r.permissions || [];
+      const has = (p: string) => perms.includes('all') || perms.includes(p);
+      const target = has('dashboard') ? '/dashboard'
+        : has('quotations') ? '/quotations/dashboard'
+        : has('employees') ? '/employees'
+        : has('reports') ? '/reports'
+        : has('customers') ? '/customers'
+        : has('payroll') ? '/payroll'
+        : has('advances') ? '/advances'
+        : has('payslip') ? '/payslip'
+        : has('documentation') ? '/documentation-center'
+        : has('company_settings') ? '/company-settings'
+        : has('user_management') ? '/user-management'
+        : '/dashboard';
+      navigate(target);
     } finally {
       setBusy(false);
     }

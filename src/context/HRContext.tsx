@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { Employee, Advance, PayrollEntry, Department, Role } from '@/types/hr';
+import { Employee, Advance, PayrollEntry, Department, Role, UserRole, AppUser, PermissionKey } from '@/types/hr';
 import { supabase } from '@/integrations/supabase/client';
 import type { Session } from '@supabase/supabase-js';
 import { hashPassword } from '@/utils/crypto';
@@ -20,14 +20,27 @@ interface HRContextType {
   isLoggedIn: boolean;
   loading: boolean;
   session: Session | null;
+  /** Role title string chosen by admin */
+  role: string;
+  /** List of permitted section keys, or ['all'] */
+  permissions: string[];
+  isAdmin: boolean;
+  /** Helper function to check if current user can access a specific section */
+  canAccess: (permission: PermissionKey) => boolean;
   /** The raw JWT string (HS256) stored in localStorage, or null when logged out. */
   token: string | null;
   /** Decoded JWT payload — available when isLoggedIn is true. */
   tokenPayload: JWTPayload | null;
-  login: (username: string, password: string) => Promise<{ ok: boolean; error?: string }>;
+  login: (username: string, password: string) => Promise<{ ok: boolean; role?: string; permissions?: string[]; error?: string }>;
   signUp: (username: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   logout: () => Promise<void>;
   updateCredentials: (newUsername: string, newPassword?: string) => Promise<{ ok: boolean; error?: string }>;
+  // User Management with granular permissions
+  getUsers: () => Promise<AppUser[]>;
+  createUser: (username: string, password: string, role: string, permissions: string[]) => Promise<{ ok: boolean; error?: string }>;
+  updateUserRoleAndPermissions: (username: string, role: string, permissions: string[]) => Promise<{ ok: boolean; error?: string }>;
+  updateUserPassword: (username: string, newPassword: string) => Promise<{ ok: boolean; error?: string }>;
+  deleteUser: (username: string) => Promise<{ ok: boolean; error?: string }>;
   // Reference tables — fully loaded
   employees: Employee[];
   setEmployees: Setter<Employee>;
@@ -319,6 +332,22 @@ export function HRProvider({ children }: { children: React.ReactNode }) {
   const setPayroll = useCallback(makeSetter<PayrollEntry>('payroll', setPayrollState, payToRow), []);
   const setAdvances = useCallback(makeSetter<Advance>('advances', setAdvancesState, advToRow), []);
 
+  const role: string = tokenPayload?.role || (session?.user?.email === 'admin' ? 'Admin' : 'User');
+  const permissions: string[] = Array.isArray(tokenPayload?.permissions) && tokenPayload.permissions.length > 0
+    ? tokenPayload.permissions
+    : (session?.user?.email === 'admin' || role.toLowerCase() === 'admin' ? ['all'] : []);
+
+  const isAdmin = session?.user?.email === 'admin' ||
+                  role.toLowerCase() === 'admin' ||
+                  permissions.includes('all') ||
+                  permissions.includes('user_management');
+
+  const canAccess = useCallback((perm: PermissionKey): boolean => {
+    if (isAdmin) return true;
+    if (permissions.includes('all')) return true;
+    return permissions.includes(perm);
+  }, [isAdmin, permissions]);
+
   const login = useCallback(async (username: string, password: string) => {
     const hashedPassword = await hashPassword(password);
 
@@ -336,12 +365,14 @@ export function HRProvider({ children }: { children: React.ReactNode }) {
         if (res.ok) {
           const { token: jwt } = await res.json() as { token: string };
           const payload = decodeJWTPayload(jwt);
+          const userRole = payload?.role || 'Admin';
+          const userPerms = payload?.permissions || ['all'];
           const dummySession = { user: { email: username } } as unknown as Session;
           setSession(dummySession);
           setToken(jwt);
           setTokenPayload(payload);
           localStorage.setItem(JWT_TOKEN_KEY, jwt);
-          return { ok: true };
+          return { ok: true, role: userRole, permissions: userPerms };
         }
 
         // 401 = wrong credentials
@@ -359,7 +390,7 @@ export function HRProvider({ children }: { children: React.ReactNode }) {
     // ── Fallback path: client-side signing (local dev / offline) ───────────
     const { data, error } = await supabase
       .from('login_credentials')
-      .select('username')
+      .select('username, role, permissions')
       .eq('username', username)
       .eq('password', hashedPassword)
       .maybeSingle();
@@ -368,9 +399,14 @@ export function HRProvider({ children }: { children: React.ReactNode }) {
       return { ok: false, error: 'Wrong username or password' };
     }
 
+    const userRole = (data as any)?.role || 'Admin';
+    const userPerms = Array.isArray((data as any)?.permissions) && (data as any)?.permissions.length > 0
+      ? (data as any)?.permissions
+      : (username === 'admin' ? ['all'] : []);
+
     let jwt: string;
     try {
-      jwt = await signJWT(username, 'admin');
+      jwt = await signJWT(username, userRole, userPerms);
     } catch (jwtErr) {
       console.error('[auth] JWT signing failed:', jwtErr);
       return { ok: false, error: 'Could not create session token. Is VITE_JWT_SECRET set?' };
@@ -382,15 +418,19 @@ export function HRProvider({ children }: { children: React.ReactNode }) {
     setToken(jwt);
     setTokenPayload(payload);
     localStorage.setItem(JWT_TOKEN_KEY, jwt);
-    return { ok: true };
+    return { ok: true, role: userRole, permissions: userPerms };
   }, []);
-
 
   const signUp = useCallback(async (username: string, password: string) => {
     const hashedPassword = await hashPassword(password);
     const { error } = await supabase
       .from('login_credentials')
-      .insert({ username, password: hashedPassword });
+      .insert({
+        username: username.trim(),
+        password: hashedPassword,
+        role: 'Front Office',
+        permissions: ['quotations', 'customers', 'reports']
+      });
 
     if (error) {
       return { ok: false, error: error.message };
@@ -416,10 +456,10 @@ export function HRProvider({ children }: { children: React.ReactNode }) {
       return { ok: false, error: error.message };
     }
 
-    // Re-issue a JWT for the new username
+    // Re-issue a JWT for the new username preserving role and permissions
     let jwt: string;
     try {
-      jwt = await signJWT(newUsername, 'admin');
+      jwt = await signJWT(newUsername, role, permissions);
     } catch (jwtErr) {
       return { ok: false, error: 'Could not refresh session token.' };
     }
@@ -430,6 +470,74 @@ export function HRProvider({ children }: { children: React.ReactNode }) {
     setToken(jwt);
     setTokenPayload(payload);
     localStorage.setItem(JWT_TOKEN_KEY, jwt);
+    return { ok: true };
+  }, [session, role, permissions]);
+
+  const getUsers = useCallback(async (): Promise<AppUser[]> => {
+    const { data, error } = await supabase
+      .from('login_credentials')
+      .select('username, role, permissions, created_at')
+      .order('created_at', { ascending: true });
+    if (error || !data) return [];
+    return data.map((r: any) => ({
+      username: r.username,
+      role: r.role || (r.username === 'admin' ? 'Admin' : 'User'),
+      permissions: Array.isArray(r.permissions) && r.permissions.length > 0
+        ? r.permissions
+        : (r.username === 'admin' || (r.role && r.role.toLowerCase() === 'admin') ? ['all'] : []),
+      createdAt: r.created_at,
+    }));
+  }, []);
+
+  const createUser = useCallback(async (username: string, password: string, userRole: string, perms: string[]) => {
+    const clean = username.trim();
+    if (!clean) return { ok: false, error: 'Username is required' };
+    if (!password || password.length < 6) return { ok: false, error: 'Password must be at least 6 characters' };
+    const hashedPassword = await hashPassword(password);
+    const { error } = await supabase
+      .from('login_credentials')
+      .insert({
+        username: clean,
+        password: hashedPassword,
+        role: userRole.trim() || 'User',
+        permissions: perms && perms.length > 0 ? perms : ['all']
+      });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  }, []);
+
+  const updateUserRoleAndPermissions = useCallback(async (username: string, newRole: string, perms: string[]) => {
+    const { error } = await supabase
+      .from('login_credentials')
+      .update({
+        role: newRole.trim() || 'User',
+        permissions: perms && perms.length > 0 ? perms : []
+      })
+      .eq('username', username);
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  }, []);
+
+  const updateUserPassword = useCallback(async (username: string, newPassword: string) => {
+    if (!newPassword || newPassword.length < 6) return { ok: false, error: 'Password must be at least 6 characters' };
+    const hashedPassword = await hashPassword(newPassword);
+    const { error } = await supabase
+      .from('login_credentials')
+      .update({ password: hashedPassword })
+      .eq('username', username);
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  }, []);
+
+  const deleteUser = useCallback(async (username: string) => {
+    if (session?.user?.email === username) {
+      return { ok: false, error: 'Cannot delete your own account' };
+    }
+    const { error } = await supabase
+      .from('login_credentials')
+      .delete()
+      .eq('username', username);
+    if (error) return { ok: false, error: error.message };
     return { ok: true };
   }, [session]);
 
@@ -445,7 +553,9 @@ export function HRProvider({ children }: { children: React.ReactNode }) {
   return (
     <HRContext.Provider value={{
       isLoggedIn, loading, session, token, tokenPayload,
+      role, permissions, isAdmin, canAccess,
       login, signUp, logout, updateCredentials,
+      getUsers, createUser, updateUserRoleAndPermissions, updateUserPassword, deleteUser,
       employees, setEmployees, departments, setDepartments, roles, setRoles,
       payroll, totalPayroll, fetchPayroll, setPayroll,
       advances, totalAdvances, fetchAdvances, setAdvances,

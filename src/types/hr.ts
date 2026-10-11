@@ -143,3 +143,56 @@ export function generateEmployeeId(employees: Employee[]): string {
   }, 0);
   return `EMP${String(maxNum + 1).padStart(3, '0')}`;
 }
+
+export type PermissionKey =
+  | 'all'
+  | 'dashboard'
+  | 'employees'
+  | 'payroll'
+  | 'advances'
+  | 'payslip'
+  | 'documentation'
+  | 'hr_settings'
+  | 'quotations'
+  | 'customers'
+  | 'reports'
+  | 'company_settings'
+  | 'user_management';
+
+export interface PermissionDefinition {
+  key: PermissionKey;
+  label: string;
+  category: 'HR Management' | 'Quotation & Sales' | 'Reports' | 'System & Settings';
+  description: string;
+}
+
+export const ALL_PERMISSIONS: PermissionDefinition[] = [
+  // HR Management
+  { key: 'dashboard', label: 'HR Dashboard', category: 'HR Management', description: 'View HR overview metrics, stats & calendar' },
+  { key: 'employees', label: 'Employee Master', category: 'HR Management', description: 'Add, view and edit employee records and profiles' },
+  { key: 'payroll', label: 'Monthly Payroll', category: 'HR Management', description: 'Calculate salaries, overtime, attendance & payment modes' },
+  { key: 'advances', label: 'Advance Management', category: 'HR Management', description: 'Record and track employee salary advances and deductions' },
+  { key: 'payslip', label: 'Payslip Generator', category: 'HR Management', description: 'Generate, preview and download employee monthly payslips' },
+  { key: 'documentation', label: 'Documentation Center', category: 'HR Management', description: 'Generate Experience, Salary Revision, Compensation & Relieving certificates' },
+  { key: 'hr_settings', label: 'HR Settings', category: 'HR Management', description: 'Manage departments and job roles' },
+
+  // Quotation & Sales
+  { key: 'quotations', label: 'Quotation Management', category: 'Quotation & Sales', description: 'Create, edit, view and print client quotations' },
+  { key: 'customers', label: 'Clients Master', category: 'Quotation & Sales', description: 'Manage customer and client contact database' },
+
+  // Reports
+  { key: 'reports', label: 'Reports & Inspections', category: 'Reports', description: 'Create and view technical inspection and calibration reports' },
+
+  // System & Settings
+  { key: 'company_settings', label: 'Company Settings', category: 'System & Settings', description: 'Edit company profile, letterhead, logo, GST & bank details' },
+  { key: 'user_management', label: 'User & Access Control', category: 'System & Settings', description: 'Create user logins and configure section access permissions' },
+];
+
+export type UserRole = string;
+
+export interface AppUser {
+  username: string;
+  role: string;
+  permissions: string[];
+  createdAt?: string;
+}

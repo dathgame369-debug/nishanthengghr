@@ -43,7 +43,7 @@ async function importHmacKey(secret: string): Promise<CryptoKey> {
   );
 }
 
-async function signJWT(username: string, role: string, secret: string): Promise<string> {
+async function signJWT(username: string, role: string, permissions: string[], secret: string): Promise<string> {
   const header = toBase64url(
     new TextEncoder().encode(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
   );
@@ -52,6 +52,7 @@ async function signJWT(username: string, role: string, secret: string): Promise<
   const payload = {
     sub: username,
     role,
+    permissions,
     iat: now,
     exp: now + 8 * 60 * 60, // 8 hours
   };
@@ -121,7 +122,7 @@ Deno.serve(async (req: Request) => {
   // Verify credentials (password is already SHA-256 hashed on the client)
   const { data, error } = await supabase
     .from('login_credentials')
-    .select('username')
+    .select('username, role, permissions')
     .eq('username', username)
     .eq('password', password)   // password column stores SHA-256 hex hash
     .maybeSingle();
@@ -133,10 +134,15 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  // Sign JWT server-side — secret stays in Deno env, never sent to browser
-  const token = await signJWT(username, 'admin', jwtSecret);
+  const userRole = data.role || (username === 'admin' ? 'Admin' : 'User');
+  const userPermissions = (Array.isArray(data.permissions) && data.permissions.length > 0)
+    ? data.permissions
+    : (username === 'admin' || userRole.toLowerCase() === 'admin' ? ['all'] : []);
 
-  return new Response(JSON.stringify({ token }), {
+  // Sign JWT server-side — secret stays in Deno env, never sent to browser
+  const token = await signJWT(username, userRole, userPermissions, jwtSecret);
+
+  return new Response(JSON.stringify({ token, role: userRole, permissions: userPermissions }), {
     status: 200,
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
   });

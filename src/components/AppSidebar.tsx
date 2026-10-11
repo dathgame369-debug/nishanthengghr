@@ -1,56 +1,57 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useHR } from '@/context/HRContext';
 import {
   LayoutDashboard, Users, CalendarDays,
   Wallet, FileText, LogOut, Settings, X,
   Briefcase, FileSpreadsheet, Building2, ChevronDown, ChevronRight, Settings2, Plus, Eye,
-  Award
+  Award, ShieldCheck
 } from 'lucide-react';
 import logo from '@/assets/logo.png';
 
-type NavItem = { path: string; label: string; icon: any };
+import { PermissionKey } from '@/types/hr';
+
+type NavItem = { path: string; label: string; icon: any; perm: PermissionKey };
 type NavGroup = { key: string; label: string; icon: any; items: NavItem[] };
 
-const groups: NavGroup[] = [
+const rawGroups: NavGroup[] = [
   {
     key: 'hr', label: 'HR Management', icon: Briefcase,
     items: [
-      { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { path: '/employees', label: 'Employee List', icon: Users },
-      { path: '/payroll', label: 'Monthly Payroll', icon: CalendarDays },
-      { path: '/advances', label: 'Advance Mgmt', icon: Wallet },
-      { path: '/payslip', label: 'Payslip Generator', icon: FileText },
-      { path: '/documentation-center', label: 'Documentation Center', icon: Award },
-      { path: '/settings', label: 'HR Settings', icon: Settings },
+      { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, perm: 'dashboard' },
+      { path: '/employees', label: 'Employee List', icon: Users, perm: 'employees' },
+      { path: '/payroll', label: 'Monthly Payroll', icon: CalendarDays, perm: 'payroll' },
+      { path: '/advances', label: 'Advance Mgmt', icon: Wallet, perm: 'advances' },
+      { path: '/payslip', label: 'Payslip Generator', icon: FileText, perm: 'payslip' },
+      { path: '/documentation-center', label: 'Documentation Center', icon: Award, perm: 'documentation' },
+      { path: '/settings', label: 'HR Settings', icon: Settings, perm: 'hr_settings' },
     ],
   },
   {
     key: 'quot', label: 'Quotation Management', icon: FileSpreadsheet,
     items: [
-      { path: '/quotations/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { path: '/quotations/new', label: 'Create Quotation', icon: FileText },
-      { path: '/quotations', label: 'Quotation List', icon: FileSpreadsheet },
-      { path: '/quotations/settings', label: 'Quotation Settings', icon: Settings },
+      { path: '/quotations/dashboard', label: 'Dashboard', icon: LayoutDashboard, perm: 'quotations' },
+      { path: '/quotations/new', label: 'Create Quotation', icon: FileText, perm: 'quotations' },
+      { path: '/quotations', label: 'Quotation List', icon: FileSpreadsheet, perm: 'quotations' },
+      { path: '/quotations/settings', label: 'Quotation Settings', icon: Settings, perm: 'quotations' },
     ],
   },
   {
     key: 'reports', label: 'Reports & Inspections', icon: FileText,
     items: [
-      { path: '/reports/new', label: 'Create Report', icon: FileText },
-      { path: '/reports', label: 'View Reports', icon: Eye },
+      { path: '/reports/new', label: 'Create Report', icon: FileText, perm: 'reports' },
+      { path: '/reports', label: 'View Reports', icon: Eye, perm: 'reports' },
     ],
   },
   {
     key: 'settings', label: 'Settings', icon: Settings2,
     items: [
-      { path: '/customers', label: 'Clients Master', icon: Building2 },
-      { path: '/company-settings', label: 'Company Settings', icon: Settings2 },
+      { path: '/customers', label: 'Clients Master', icon: Building2, perm: 'customers' },
+      { path: '/company-settings', label: 'Company Settings', icon: Settings2, perm: 'company_settings' },
+      { path: '/user-management', label: 'User & Access Mgmt', icon: ShieldCheck, perm: 'user_management' },
     ]
   }
 ];
-
-// const companySettingsItem: NavItem = { path: '/company-settings', label: 'Company Settings', icon: Settings2 };
 
 interface AppSidebarProps {
   mobileOpen?: boolean;
@@ -60,15 +61,27 @@ interface AppSidebarProps {
 export default function AppSidebar({ mobileOpen = false, onClose }: AppSidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { logout } = useHR();
+  const { logout, role, session, canAccess } = useHR();
+
+  const groups = useMemo(() => {
+    return rawGroups
+      .map(g => ({
+        ...g,
+        items: g.items.filter(item => canAccess(item.perm))
+      }))
+      .filter(g => g.items.length > 0);
+  }, [canAccess]);
 
   const isActive = (path: string) => location.pathname === path;
   const initialOpen = () => {
     const open: Record<string, boolean> = {};
-    for (const g of groups) open[g.key] = g.items.some(i => isActive(i.path));
-    // Default both open if neither matches yet
+    for (const g of rawGroups) open[g.key] = g.items.some(i => isActive(i.path));
     if (!Object.values(open).some(Boolean)) {
-      open.hr = true; open.quot = true;
+      if (isFrontOffice) {
+        open.quot = true; open.reports = true;
+      } else {
+        open.hr = true; open.quot = true;
+      }
     }
     return open;
   };
@@ -149,10 +162,20 @@ export default function AppSidebar({ mobileOpen = false, onClose }: AppSidebarPr
         })}
       </nav>
 
-      <div className="px-3 py-4 border-t border-sidebar-border">
+      {/* User profile & Logout */}
+      <div className="px-3 py-4 border-t border-sidebar-border space-y-2">
+        <div className="px-3 py-2 bg-white/5 rounded-lg border border-white/10">
+          <p className="text-xs font-semibold text-sidebar-foreground truncate">
+            @{session?.user?.email || 'user'}
+          </p>
+          <span className="inline-flex items-center gap-1 text-[10px] uppercase font-extrabold px-2 py-0.5 rounded-full mt-1 bg-white/10 text-white border border-white/20">
+            {role || 'User'}
+          </span>
+        </div>
+
         <button onClick={async () => { await logout(); navigate('/'); onClose?.(); }}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-destructive/20 hover:text-destructive transition-all">
-          <LogOut className="w-4.5 h-4.5" />
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-destructive/20 hover:text-destructive transition-all">
+          <LogOut className="w-4 h-4" />
           Logout
         </button>
       </div>
