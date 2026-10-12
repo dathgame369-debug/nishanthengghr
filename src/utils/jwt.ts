@@ -56,7 +56,7 @@ async function importKey(secret: string): Promise<CryptoKey> {
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-const JWT_SECRET = import.meta.env.VITE_JWT_SECRET as string | undefined;
+const JWT_SECRET = (import.meta.env.VITE_JWT_SECRET as string | undefined) || 'nishanth-engg-hr-jwt-secret-key-2025';
 
 /**
  * Sign a JWT with HS256.
